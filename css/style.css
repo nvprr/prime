@@ -453,25 +453,34 @@ h1, h2, h3, p { margin: 0; }
 .stat-box-value { font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums; }
 .stat-box-label { font-size: 11px; color: var(--text-faint); margin-top: 2px; }
 
-.chart-card { margin-bottom: 14px; }
-.chart-title { font-size: 13px; font-weight: 700; color: var(--text-dim); margin-bottom: 10px; }
+.chart-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 14px;
+}
+.chart-card { margin-bottom: 0; padding: 12px 12px 10px; }
+.chart-title { font-size: 11px; font-weight: 700; color: var(--text-dim); margin-bottom: 4px; letter-spacing: 0.01em; }
 .chart-canvas-wrap { width: 100%; }
 .chart-card canvas { width: 100%; display: block; }
+.chart-card .empty-state.small { padding: 20px 4px; }
+.chart-card .empty-state.small p { font-size: 12px; }
 
-.history-list { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+.history-list { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
 .history-item {
   display: flex;
   align-items: center;
   gap: 12px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
 }
-.history-date { font-size: 13px; font-weight: 700; width: 44px; flex-shrink: 0; color: var(--text-dim); }
-.history-bar-track { flex: 1; height: 8px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+.history-date { font-size: 12px; font-weight: 700; width: 40px; flex-shrink: 0; color: var(--text-dim); }
+.history-bar-track { flex: 1; height: 6px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
 .history-bar-fill { height: 100%; background: var(--accent); border-radius: 999px; }
-.history-pct { font-size: 13px; font-weight: 700; width: 38px; text-align: right; font-variant-numeric: tabular-nums; }
+.history-pct { font-size: 12px; font-weight: 700; width: 34px; text-align: right; font-variant-numeric: tabular-nums; }
+.history-more-btn { display: block; margin: 10px auto 0; }
 
 /* ============================================================
    SETTINGS
