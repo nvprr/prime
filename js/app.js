@@ -725,6 +725,12 @@ document.getElementById('rangeSwitch').addEventListener('click', (e) => {
   if (!btn) return;
   currentRange = Number(btn.dataset.range);
   document.querySelectorAll('.range-btn').forEach(b => b.classList.toggle('active', b === btn));
+  historyExpanded = false;
+  renderStats();
+});
+
+document.getElementById('historyMoreBtn').addEventListener('click', () => {
+  historyExpanded = !historyExpanded;
   renderStats();
 });
 
@@ -781,20 +787,29 @@ function statBox(value, label) {
   return `<div class="stat-box"><div class="stat-box-value">${value}</div><div class="stat-box-label">${label}</div></div>`;
 }
 
+const HISTORY_PAGE_SIZE = 5;
+let historyExpanded = false;
+
 function renderHistory(range) {
   const list = document.getElementById('historyList');
   const empty = document.getElementById('historyEmpty');
+  const moreBtn = document.getElementById('historyMoreBtn');
   list.innerHTML = '';
   const reversed = [...range].reverse();
   const withData = reversed.filter(ds => getDayReadonly(ds) && getDayReadonly(ds).tasks.length > 0);
 
   if (withData.length === 0) {
     empty.hidden = false;
+    moreBtn.hidden = true;
     return;
   }
   empty.hidden = true;
 
-  for (const ds of withData.slice(0, 30)) {
+  const visibleCount = historyExpanded ? Math.min(withData.length, 30) : Math.min(withData.length, HISTORY_PAGE_SIZE);
+  moreBtn.hidden = withData.length <= HISTORY_PAGE_SIZE;
+  moreBtn.textContent = historyExpanded ? 'Pokaż mniej' : `Pokaż więcej (${withData.length - HISTORY_PAGE_SIZE})`;
+
+  for (const ds of withData.slice(0, visibleCount)) {
     const day = getDayReadonly(ds);
     const s = computeScore(day);
     const d = parseDateStr(ds);
@@ -849,7 +864,7 @@ function drawLineChart(canvasId, emptyId, points, opts = {}) {
   const { ctx, w, h } = setupCanvas(canvas);
   ctx.clearRect(0, 0, w, h);
 
-  const padTop = 14, padBottom = 20, padX = 6;
+  const padTop = 8, padBottom = 16, padX = 6;
   const values = valid.map(p => p.y);
   let min = opts.min !== undefined ? opts.min : Math.min(...values);
   let max = opts.max !== undefined ? opts.max : Math.max(...values);
@@ -860,18 +875,6 @@ function drawLineChart(canvasId, emptyId, points, opts = {}) {
   const plotH = h - padTop - padBottom;
   const stepX = points.length > 1 ? plotW / (points.length - 1) : 0;
 
-  // gridlines
-  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
-  ctx.lineWidth = 1;
-  for (let i = 0; i <= 2; i++) {
-    const y = padTop + (plotH / 2) * i;
-    ctx.beginPath();
-    ctx.moveTo(padX, y);
-    ctx.lineTo(w - padX, y);
-    ctx.stroke();
-  }
-
-  // build path over valid points only, connecting across gaps
   const coords = points.map((p, i) => {
     if (p.y === null || p.y === undefined) return null;
     const x = padX + stepX * i;
@@ -881,58 +884,39 @@ function drawLineChart(canvasId, emptyId, points, opts = {}) {
 
   const accent = getAccentColor();
 
-  // area fill
+  // simple connecting line between dots — no fill, no gridlines, kept deliberately minimal
   ctx.beginPath();
   let started = false;
-  coords.forEach((c) => {
-    if (!c) return;
-    if (!started) { ctx.moveTo(c.x, c.y); started = true; }
-    else ctx.lineTo(c.x, c.y);
-  });
-  const lastValid = [...coords].reverse().find(c => c);
-  const firstValid = coords.find(c => c);
-  if (firstValid && lastValid) {
-    ctx.lineTo(lastValid.x, padTop + plotH);
-    ctx.lineTo(firstValid.x, padTop + plotH);
-    ctx.closePath();
-    const grad = ctx.createLinearGradient(0, padTop, 0, padTop + plotH);
-    grad.addColorStop(0, hexToRgba(accent, 0.25));
-    grad.addColorStop(1, hexToRgba(accent, 0));
-    ctx.fillStyle = grad;
-    ctx.fill();
-  }
-
-  // line
-  ctx.beginPath();
-  started = false;
   coords.forEach((c) => {
     if (!c) { started = false; return; }
     if (!started) { ctx.moveTo(c.x, c.y); started = true; }
     else ctx.lineTo(c.x, c.y);
   });
-  ctx.strokeStyle = accent;
-  ctx.lineWidth = 2.5;
+  ctx.strokeStyle = hexToRgba(accent, 0.55);
+  ctx.lineWidth = 1.5;
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
   ctx.stroke();
 
-  // last point dot
-  if (lastValid) {
+  // a dot per data point — denser ranges get smaller dots so they don't clump into a smear
+  const dotRadius = points.length > 45 ? 1.6 : points.length > 20 ? 2 : 2.8;
+  coords.forEach((c) => {
+    if (!c) return;
     ctx.beginPath();
-    ctx.arc(lastValid.x, lastValid.y, 3.5, 0, Math.PI * 2);
+    ctx.arc(c.x, c.y, dotRadius, 0, Math.PI * 2);
     ctx.fillStyle = accent;
     ctx.fill();
-  }
+  });
 
   // x labels (first / last)
   ctx.fillStyle = 'rgba(255,255,255,0.35)';
-  ctx.font = '11px -apple-system, sans-serif';
+  ctx.font = '10px -apple-system, sans-serif';
   ctx.textBaseline = 'top';
   if (opts.labels && opts.labels.length) {
     ctx.textAlign = 'left';
-    ctx.fillText(opts.labels[0], padX, h - padBottom + 6);
+    ctx.fillText(opts.labels[0], padX, h - padBottom + 4);
     ctx.textAlign = 'right';
-    ctx.fillText(opts.labels[opts.labels.length - 1], w - padX, h - padBottom + 6);
+    ctx.fillText(opts.labels[opts.labels.length - 1], w - padX, h - padBottom + 4);
   }
 }
 
@@ -951,7 +935,7 @@ function drawBarChart(canvasId, emptyId, points, opts = {}) {
   const { ctx, w, h } = setupCanvas(canvas);
   ctx.clearRect(0, 0, w, h);
 
-  const padTop = 14, padBottom = 20, padX = 8;
+  const padTop = 8, padBottom = 16, padX = 8;
   const max = Math.max(1, ...points.map(p => p.y || 0));
   const plotW = w - padX * 2;
   const plotH = h - padTop - padBottom;
@@ -971,12 +955,12 @@ function drawBarChart(canvasId, emptyId, points, opts = {}) {
 
   if (opts.labels && opts.labels.length) {
     ctx.fillStyle = 'rgba(255,255,255,0.35)';
-    ctx.font = '11px -apple-system, sans-serif';
+    ctx.font = '10px -apple-system, sans-serif';
     ctx.textBaseline = 'top';
     ctx.textAlign = 'left';
-    ctx.fillText(opts.labels[0], padX, h - padBottom + 6);
+    ctx.fillText(opts.labels[0], padX, h - padBottom + 4);
     ctx.textAlign = 'right';
-    ctx.fillText(opts.labels[opts.labels.length - 1], w - padX, h - padBottom + 6);
+    ctx.fillText(opts.labels[opts.labels.length - 1], w - padX, h - padBottom + 4);
   }
 }
 
@@ -1130,6 +1114,37 @@ document.getElementById('newTemplateSaveBtn').addEventListener('click', () => {
 });
 
 /* -------- export / import / reset -------- */
+
+document.getElementById('checkUpdateBtn').addEventListener('click', async () => {
+  if (!('serviceWorker' in navigator)) {
+    toast('Tryb offline niedostępny w tej przeglądarce');
+    return;
+  }
+  toast('Sprawdzanie aktualizacji…');
+  try {
+    const reg = await navigator.serviceWorker.getRegistration();
+    if (!reg) {
+      toast('Brak zarejestrowanej wersji offline');
+      return;
+    }
+    await reg.update();
+    setTimeout(() => {
+      if (reg.waiting) {
+        // a new version finished installing and is ready — activate it now instead of
+        // waiting for the browser's own timing. app.js's controllerchange listener
+        // reloads the page automatically once it takes over.
+        reg.waiting.postMessage('SKIP_WAITING');
+        toast('Aktualizowanie…');
+      } else if (reg.installing) {
+        toast('Instalowanie aktualizacji…');
+      } else {
+        toast('Masz już najnowszą wersję');
+      }
+    }, 1200);
+  } catch (e) {
+    toast('Nie udało się sprawdzić aktualizacji');
+  }
+});
 
 document.getElementById('exportBtn').addEventListener('click', () => {
   const blob = new Blob([JSON.stringify(STATE, null, 2)], { type: 'application/json' });
