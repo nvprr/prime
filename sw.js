@@ -1,6 +1,6 @@
 // Prime — service worker
 // Bump CACHE_VERSION on every deploy that changes cached files.
-const CACHE_VERSION = 'prime-v3';
+const CACHE_VERSION = 'prime-v4';
 const CACHE_NAME = `prime-cache-${CACHE_VERSION}`;
 
 const CORE_ASSETS = [
@@ -37,6 +37,13 @@ self.addEventListener('activate', (event) => {
       )
     ).then(() => self.clients.claim())
   );
+});
+
+// Lets the page force an already-installed-but-waiting worker to activate immediately,
+// used by the "Sprawdź aktualizację" button in Settings so updating doesn't depend on
+// the browser's own background timing.
+self.addEventListener('message', (event) => {
+  if (event.data === 'SKIP_WAITING') self.skipWaiting();
 });
 
 // Cache-first would mean a deploy fix can stay invisible for an extra reload or more (the

@@ -184,34 +184,37 @@
     <div class="scroll-area">
       <div class="stat-summary-grid" id="statSummaryGrid"></div>
 
-      <div class="card chart-card">
-        <div class="chart-title">Daily Score</div>
-        <div class="chart-canvas-wrap"><canvas id="chartScore" height="140"></canvas></div>
-        <div class="empty-state small" id="chartScoreEmpty" hidden><p>Brak danych z tego okresu.</p></div>
-      </div>
+      <div class="chart-grid">
+        <div class="card chart-card">
+          <div class="chart-title">Daily Score</div>
+          <div class="chart-canvas-wrap"><canvas id="chartScore" height="86"></canvas></div>
+          <div class="empty-state small" id="chartScoreEmpty" hidden><p>Brak danych.</p></div>
+        </div>
 
-      <div class="card chart-card">
-        <div class="chart-title">Nawodnienie</div>
-        <div class="chart-canvas-wrap"><canvas id="chartWater" height="140"></canvas></div>
-        <div class="empty-state small" id="chartWaterEmpty" hidden><p>Brak danych z tego okresu.</p></div>
-      </div>
+        <div class="card chart-card">
+          <div class="chart-title">Nawodnienie</div>
+          <div class="chart-canvas-wrap"><canvas id="chartWater" height="86"></canvas></div>
+          <div class="empty-state small" id="chartWaterEmpty" hidden><p>Brak danych.</p></div>
+        </div>
 
-      <div class="card chart-card">
-        <div class="chart-title">Masa ciała</div>
-        <div class="chart-canvas-wrap"><canvas id="chartWeight" height="140"></canvas></div>
-        <div class="empty-state small" id="chartWeightEmpty" hidden><p>Brak danych z tego okresu.</p></div>
-      </div>
+        <div class="card chart-card">
+          <div class="chart-title">Masa ciała</div>
+          <div class="chart-canvas-wrap"><canvas id="chartWeight" height="86"></canvas></div>
+          <div class="empty-state small" id="chartWeightEmpty" hidden><p>Brak danych.</p></div>
+        </div>
 
-      <div class="card chart-card">
-        <div class="chart-title">Treningi w tygodniu</div>
-        <div class="chart-canvas-wrap"><canvas id="chartWorkouts" height="140"></canvas></div>
-        <div class="empty-state small" id="chartWorkoutsEmpty" hidden><p>Brak danych z tego okresu.</p></div>
+        <div class="card chart-card">
+          <div class="chart-title">Treningi / tydz.</div>
+          <div class="chart-canvas-wrap"><canvas id="chartWorkouts" height="86"></canvas></div>
+          <div class="empty-state small" id="chartWorkoutsEmpty" hidden><p>Brak danych.</p></div>
+        </div>
       </div>
 
       <div class="section-head">
         <h2>Historia</h2>
       </div>
       <ul class="history-list" id="historyList"></ul>
+      <button class="text-btn history-more-btn" id="historyMoreBtn" hidden>Pokaż więcej</button>
       <div class="empty-state" id="historyEmpty" hidden>
         <p>Brak danych z ostatnich dni.</p>
         <p class="empty-sub">Zacznij dzisiaj, a statystyki pojawią się tutaj.</p>
@@ -276,6 +279,11 @@
       <div class="section-head"><h2>Szablony dnia</h2></div>
       <ul class="template-list" id="templateSettingsList"></ul>
       <button class="text-btn add-template-btn" id="addTemplateBtn">+ Nowy szablon</button>
+
+      <div class="section-head"><h2>Aplikacja</h2></div>
+      <div class="card settings-card">
+        <button class="settings-action" id="checkUpdateBtn">Sprawdź aktualizację</button>
+      </div>
 
       <div class="section-head"><h2>Dane</h2></div>
       <div class="card settings-card">
