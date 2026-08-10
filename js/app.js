@@ -1226,6 +1226,16 @@ function init() {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('sw.js').catch(() => { /* offline install not available on this origin */ });
     });
+    // When a new service worker takes control (a fresh deploy finished installing in the
+    // background), reload once automatically so the person always ends up on the current
+    // files without having to manually clear anything. The `refreshed` guard stops a loop
+    // in case this fires more than once.
+    let refreshed = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (refreshed) return;
+      refreshed = true;
+      window.location.reload();
+    });
   }
 }
 
