@@ -33,6 +33,13 @@
 }
 
 * { box-sizing: border-box; }
+
+/* The `hidden` attribute must always win over any component's own `display` rule below
+   (several classes such as .view, .modal-backdrop, and canvas set display explicitly for
+   their visible state, which otherwise silently overrides the browser's default
+   `[hidden] { display: none }` UA rule and leaves the element visible/blocking clicks). */
+[hidden] { display: none !important; }
+
 html, body {
   margin: 0;
   padding: 0;
@@ -779,3 +786,18 @@ h1, h2, h3, p { margin: 0; }
   .tracker-grid { grid-template-columns: repeat(3, 1fr); }
   .stat-summary-grid { grid-template-columns: repeat(4, 1fr); }
 }
+
+/* ============================================================
+   HIDDEN ATTRIBUTE — must always win
+   Several elements above (.view, .modal-backdrop, canvas) set an
+   explicit `display` value for layout purposes, which — per the
+   CSS cascade — outranks the browser's default `[hidden]{display:none}`
+   rule (author styles beat user-agent styles at equal specificity).
+   Without this override, toggling `.hidden = true` in JS does nothing
+   visually: hidden views/modals stay on screen and block all taps.
+   This rule restores the expected behavior everywhere `hidden` is used.
+   ============================================================ */
+[hidden] {
+  display: none !important;
+}
+
