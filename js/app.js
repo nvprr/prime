@@ -832,10 +832,17 @@ function renderHistory(range) {
    CANVAS CHARTS (dependency-free)
    ============================================================ */
 
+const CHART_HEIGHT = 86; // must match the canvas `height` attribute in index.html
+
 function setupCanvas(canvas) {
   const dpr = window.devicePixelRatio || 1;
   const cssWidth = canvas.parentElement.clientWidth - 0;
-  const cssHeight = canvas.height ? parseInt(canvas.getAttribute('height'), 10) : 140;
+  // Fixed, not read back from canvas.height/getAttribute('height'): those reflect whatever
+  // was last assigned, and since we assign a DPR-scaled pixel value below, reading it back
+  // on the next render would re-scale an already-scaled number — compounding on every
+  // render until the chart grew without bound (exactly the "charts keep getting taller"
+  // bug). A fixed constant has no state to compound.
+  const cssHeight = CHART_HEIGHT;
   canvas.style.width = cssWidth + 'px';
   canvas.style.height = cssHeight + 'px';
   canvas.width = cssWidth * dpr;
@@ -1238,6 +1245,12 @@ function init() {
   });
 
   if ('serviceWorker' in navigator) {
+    // Recorded before registering: distinguishes a genuine update (page already had a
+    // controller, now a different one takes over) from the very first install (no
+    // controller yet -> one appears). `clients.claim()` in sw.js fires 'controllerchange'
+    // in both cases, but only the former should trigger a reload — reloading on first-ever
+    // load would just be a wasted extra load with nothing new to show for it.
+    const hadControllerAlready = !!navigator.serviceWorker.controller;
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('sw.js').catch(() => { /* offline install not available on this origin */ });
     });
@@ -1247,7 +1260,7 @@ function init() {
     // in case this fires more than once.
     let refreshed = false;
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (refreshed) return;
+      if (refreshed || !hadControllerAlready) return;
       refreshed = true;
       window.location.reload();
     });
