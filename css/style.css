@@ -459,12 +459,16 @@ h1, h2, h3, p { margin: 0; }
   gap: 10px;
   margin-top: 14px;
 }
-.chart-card { margin-bottom: 0; padding: 12px 12px 10px; }
+.chart-card { margin-bottom: 0; padding: 12px 12px 10px; cursor: pointer; transition: background .15s var(--ease); }
+.chart-card:active { background: var(--surface-2); }
 .chart-title { font-size: 11px; font-weight: 700; color: var(--text-dim); margin-bottom: 4px; letter-spacing: 0.01em; }
 .chart-canvas-wrap { width: 100%; }
 .chart-card canvas { width: 100%; display: block; }
 .chart-card .empty-state.small { padding: 20px 4px; }
 .chart-card .empty-state.small p { font-size: 12px; }
+
+.metric-detail-list { display: flex; flex-direction: column; gap: 6px; margin-top: 14px; }
+.metric-detail-list .history-pct { width: auto; max-width: 55%; white-space: normal; }
 
 .history-list { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
 .history-item {
