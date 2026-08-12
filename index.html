@@ -184,6 +184,9 @@
     <div class="scroll-area">
       <div class="stat-summary-grid" id="statSummaryGrid"></div>
 
+      <div class="section-head"><h2>Rekordy</h2></div>
+      <div class="stat-summary-grid" id="recordsGrid"></div>
+
       <div class="chart-grid">
         <div class="card chart-card" data-metric="score" role="button" tabindex="0">
           <div class="chart-title">Daily Score</div>
@@ -404,6 +407,9 @@
     <h3 class="modal-title">Podsumowanie</h3>
     <div class="summary-grid" id="summaryGrid"></div>
     <div class="summary-status" id="summaryStatus"></div>
+    <label class="modal-label">Notatka (opcjonalnie)
+      <textarea id="summaryNote" class="modal-input" rows="3" maxlength="300" placeholder="Jak poszło dzisiaj?"></textarea>
+    </label>
     <div class="modal-actions">
       <button class="btn primary" id="summaryCloseBtn">Zamknij</button>
     </div>
