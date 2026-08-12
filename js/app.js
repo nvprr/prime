@@ -744,6 +744,123 @@ function lastNDays(n, endDateStr) {
   return out;
 }
 
+/* -------- metric detail (tap a chart card in Stats) -------- */
+
+const METRIC_TITLES = {
+  score: 'Daily Score',
+  water: 'Nawodnienie',
+  weight: 'Masa ciała',
+  workouts: 'Treningi',
+};
+
+function buildMetricRows(metric, range) {
+  const reversed = [...range].reverse(); // newest first
+  const rows = [];
+
+  if (metric === 'score') {
+    for (const ds of reversed) {
+      const s = computeScore(getDayReadonly(ds));
+      if (s.pct === null) continue;
+      rows.push({ date: ds, valueLabel: `${s.pct}%`, pct: s.pct, sub: `${s.done}/${s.total} zadań` });
+    }
+  } else if (metric === 'water') {
+    for (const ds of reversed) {
+      const day = getDayReadonly(ds);
+      if (!day || day.water <= 0) continue;
+      const liters = roundTo(day.water / 1000, 2);
+      rows.push({ date: ds, valueLabel: `${liters} L`, pct: clamp((liters / STATE.settings.waterGoal) * 100, 0, 100), _liters: liters });
+    }
+  } else if (metric === 'weight') {
+    for (const ds of reversed) {
+      const day = getDayReadonly(ds);
+      if (!day || day.weight === null) continue;
+      rows.push({ date: ds, valueLabel: `${day.weight} kg`, _weight: day.weight });
+    }
+    if (rows.length) {
+      const vals = rows.map(r => r._weight);
+      const mn = Math.min(...vals), mx = Math.max(...vals);
+      const span = mx - mn || 1;
+      rows.forEach(r => { r.pct = ((r._weight - mn) / span) * 100; });
+    }
+  } else if (metric === 'workouts') {
+    for (const ds of reversed) {
+      const day = getDayReadonly(ds);
+      if (!day) continue;
+      const done = day.tasks.filter(t => t.category === 'trening' && t.done);
+      if (done.length === 0) continue;
+      rows.push({ date: ds, valueLabel: done.map(t => t.name).join(', '), pct: 100 });
+    }
+  }
+  return rows;
+}
+
+function buildMetricSummary(metric, rows) {
+  if (rows.length === 0) return [];
+  if (metric === 'score') {
+    const avg = Math.round(rows.reduce((a, r) => a + r.pct, 0) / rows.length);
+    return [box('Średnia', `${avg}%`), box('Dni z danymi', String(rows.length))];
+  }
+  if (metric === 'water') {
+    const avg = roundTo(rows.reduce((a, r) => a + r._liters, 0) / rows.length, 2);
+    return [box('Średnio', `${avg} L`), box('Cel dzienny', `${STATE.settings.waterGoal} L`)];
+  }
+  if (metric === 'weight') {
+    const newest = rows[0]._weight;
+    const oldest = rows[rows.length - 1]._weight;
+    const delta = roundTo(newest - oldest, 2);
+    const sign = delta > 0 ? '+' : '';
+    return [box('Aktualna', `${newest} kg`), box('Zmiana w okresie', `${sign}${delta} kg`)];
+  }
+  if (metric === 'workouts') {
+    return [box('Liczba treningów', String(rows.length))];
+  }
+  return [];
+}
+
+function openMetricDetail(metric) {
+  const range = lastNDays(currentRange, todayStr());
+  const rows = buildMetricRows(metric, range);
+
+  document.getElementById('metricModalTitle').textContent = METRIC_TITLES[metric] || 'Szczegóły';
+  document.getElementById('metricSummaryGrid').innerHTML = buildMetricSummary(metric, rows).join('');
+
+  const list = document.getElementById('metricDetailList');
+  const empty = document.getElementById('metricDetailEmpty');
+  list.innerHTML = '';
+  if (rows.length === 0) {
+    empty.hidden = false;
+  } else {
+    empty.hidden = true;
+    for (const r of rows) {
+      const d = parseDateStr(r.date);
+      const li = document.createElement('li');
+      li.className = 'history-item';
+      li.innerHTML = `
+        <span class="history-date">${pad2(d.getDate())}.${pad2(d.getMonth() + 1)}</span>
+        <span class="history-bar-track"><span class="history-bar-fill" style="width:${r.pct || 0}%"></span></span>
+        <span class="history-pct">${escapeHtml(r.valueLabel)}${r.sub ? ` · ${escapeHtml(r.sub)}` : ''}</span>
+      `;
+      list.appendChild(li);
+    }
+  }
+
+  openModal(document.getElementById('metricModal'));
+}
+
+document.querySelector('.chart-grid').addEventListener('click', (e) => {
+  const card = e.target.closest('.chart-card');
+  if (!card) return;
+  openMetricDetail(card.dataset.metric);
+});
+document.querySelector('.chart-grid').addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const card = e.target.closest('.chart-card');
+  if (!card) return;
+  e.preventDefault();
+  openMetricDetail(card.dataset.metric);
+});
+document.getElementById('metricModalCloseBtn').addEventListener('click', closeModals);
+
 function renderStats() {
   const today = todayStr();
   const week = lastNDays(7, today);
