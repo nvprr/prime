@@ -185,25 +185,25 @@
       <div class="stat-summary-grid" id="statSummaryGrid"></div>
 
       <div class="chart-grid">
-        <div class="card chart-card">
+        <div class="card chart-card" data-metric="score" role="button" tabindex="0">
           <div class="chart-title">Daily Score</div>
           <div class="chart-canvas-wrap"><canvas id="chartScore" height="86"></canvas></div>
           <div class="empty-state small" id="chartScoreEmpty" hidden><p>Brak danych.</p></div>
         </div>
 
-        <div class="card chart-card">
+        <div class="card chart-card" data-metric="water" role="button" tabindex="0">
           <div class="chart-title">Nawodnienie</div>
           <div class="chart-canvas-wrap"><canvas id="chartWater" height="86"></canvas></div>
           <div class="empty-state small" id="chartWaterEmpty" hidden><p>Brak danych.</p></div>
         </div>
 
-        <div class="card chart-card">
+        <div class="card chart-card" data-metric="weight" role="button" tabindex="0">
           <div class="chart-title">Masa ciała</div>
           <div class="chart-canvas-wrap"><canvas id="chartWeight" height="86"></canvas></div>
           <div class="empty-state small" id="chartWeightEmpty" hidden><p>Brak danych.</p></div>
         </div>
 
-        <div class="card chart-card">
+        <div class="card chart-card" data-metric="workouts" role="button" tabindex="0">
           <div class="chart-title">Treningi / tydz.</div>
           <div class="chart-canvas-wrap"><canvas id="chartWorkouts" height="86"></canvas></div>
           <div class="empty-state small" id="chartWorkoutsEmpty" hidden><p>Brak danych.</p></div>
@@ -406,6 +406,18 @@
     <div class="summary-status" id="summaryStatus"></div>
     <div class="modal-actions">
       <button class="btn primary" id="summaryCloseBtn">Zamknij</button>
+    </div>
+  </div>
+
+  <!-- Metric detail (tapped from a Stats chart card) -->
+  <div class="modal" id="metricModal" hidden>
+    <div class="modal-handle"></div>
+    <h3 class="modal-title" id="metricModalTitle">Szczegóły</h3>
+    <div class="summary-grid" id="metricSummaryGrid"></div>
+    <ul class="metric-detail-list" id="metricDetailList"></ul>
+    <div class="empty-state small" id="metricDetailEmpty" hidden><p>Brak danych w tym okresie.</p></div>
+    <div class="modal-actions">
+      <button class="btn primary" id="metricModalCloseBtn">Zamknij</button>
     </div>
   </div>
 

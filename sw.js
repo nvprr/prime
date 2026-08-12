@@ -1,6 +1,6 @@
 // Prime — service worker
 // Bump CACHE_VERSION on every deploy that changes cached files.
-const CACHE_VERSION = 'prime-v5';
+const CACHE_VERSION = 'prime-v6';
 const CACHE_NAME = `prime-cache-${CACHE_VERSION}`;
 
 const CORE_ASSETS = [
