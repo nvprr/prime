@@ -51,6 +51,7 @@ function defaultDay() {
     sleep: null,
     weight: null,
     steps: null,
+    note: '',
   };
 }
 
@@ -306,6 +307,7 @@ function renderToday() {
   const empty = document.getElementById('tasksEmpty');
   list.innerHTML = '';
   const sorted = [...day.tasks].sort((a, b) => {
+    if (!!a.priority !== !!b.priority) return a.priority ? -1 : 1;
     if (a.time && b.time) return a.time.localeCompare(b.time);
     if (a.time) return -1;
     if (b.time) return 1;
@@ -348,10 +350,11 @@ function renderToday() {
 
 function renderTaskItem(task) {
   const li = document.createElement('li');
-  li.className = 'task-item' + (task.done ? ' done' : '');
+  li.className = 'task-item' + (task.done ? ' done' : '') + (task.priority ? ' priority' : '');
   li.dataset.id = task.id;
 
   const cat = catInfo(task.category);
+  const isPriority = !!task.priority;
 
   li.innerHTML = `
     <button class="task-check ${task.done ? 'checked' : ''}" data-action="toggle" aria-label="Odhacz zadanie">
@@ -364,6 +367,7 @@ function renderTaskItem(task) {
         ${cat ? `<span class="task-cat-icon">${cat.emoji} ${cat.label}</span>` : ''}
       </span>
     </div>
+    <button class="task-star-btn ${isPriority ? 'active' : ''}" data-action="star" aria-label="${isPriority ? 'Usuń z Big 3' : 'Dodaj do Big 3'}">${isPriority ? '★' : '☆'}</button>
     <button class="task-edit-btn" data-action="edit" aria-label="Edytuj">⋯</button>
   `;
   return li;
@@ -390,6 +394,17 @@ document.getElementById('taskList').addEventListener('click', (e) => {
     renderToday();
   } else if (action === 'edit') {
     openTaskModal(task);
+  } else if (action === 'star') {
+    if (!task.priority) {
+      const priorityCount = day.tasks.filter(t => t.priority).length;
+      if (priorityCount >= 3) {
+        toast('Big 3 — możesz oznaczyć max 3 zadania');
+        return;
+      }
+    }
+    task.priority = !task.priority;
+    saveState();
+    renderToday();
   }
 });
 
@@ -468,7 +483,7 @@ document.getElementById('taskSaveBtn').addEventListener('click', () => {
       task.category = selectedCategory;
     }
   } else {
-    day.tasks.push({ id: uid(), name, time, category: selectedCategory, done: false });
+    day.tasks.push({ id: uid(), name, time, category: selectedCategory, done: false, priority: false });
   }
   saveState();
   closeModals();
@@ -577,7 +592,7 @@ document.getElementById('templatePickList').addEventListener('click', (e) => {
   if (!tpl) return;
   const day = ensureDay(currentDate);
   for (const t of tpl.tasks) {
-    day.tasks.push({ id: uid(), name: t.name, time: null, category: t.category || null, done: false });
+    day.tasks.push({ id: uid(), name: t.name, time: null, category: t.category || null, done: false, priority: false });
   }
   saveState();
   closeModals();
@@ -612,6 +627,8 @@ document.getElementById('openSummaryBtn').addEventListener('click', () => {
     status.textContent = 'Dzień niezaliczony';
     status.className = 'summary-status miss';
   }
+  document.getElementById('summaryNote').value = day.note || '';
+  summaryNoteDate = currentDate;
   openModal(document.getElementById('summaryModal'));
 });
 
@@ -619,7 +636,21 @@ function box(label, value) {
   return `<div class="summary-box"><div class="summary-box-label">${label}</div><div class="summary-box-value">${value}</div></div>`;
 }
 
-document.getElementById('summaryCloseBtn').addEventListener('click', closeModals);
+let summaryNoteDate = null;
+function saveSummaryNote() {
+  if (!summaryNoteDate) return;
+  const day = ensureDay(summaryNoteDate);
+  const val = document.getElementById('summaryNote').value;
+  if (day.note !== val) {
+    day.note = val;
+    saveState();
+  }
+}
+document.getElementById('summaryNote').addEventListener('blur', saveSummaryNote);
+document.getElementById('summaryCloseBtn').addEventListener('click', () => {
+  saveSummaryNote();
+  closeModals();
+});
 
 /* ============================================================
    RENDER: GOALS
@@ -861,34 +892,114 @@ document.querySelector('.chart-grid').addEventListener('keydown', (e) => {
 });
 document.getElementById('metricModalCloseBtn').addEventListener('click', closeModals);
 
-function renderStats() {
-  const today = todayStr();
-  const week = lastNDays(7, today);
-  const range = lastNDays(currentRange, today);
-
-  // ---- top summary (trailing 7 days) ----
-  let tasksDoneSum = 0, scoreSum = 0, scoreCountDays = 0, workoutCount = 0, waterSum = 0, waterDays = 0, sleepSum = 0, sleepDays = 0, proteinSum = 0, proteinDays = 0;
-  for (const ds of week) {
+function computeWeekMetrics(dates) {
+  let tasksDone = 0, scoreSum = 0, scoreDays = 0, workouts = 0, waterSum = 0, waterDays = 0, sleepSum = 0, sleepDays = 0, proteinSum = 0, proteinDays = 0;
+  for (const ds of dates) {
     const day = getDayReadonly(ds);
     if (!day) continue;
     const s = computeScore(day);
-    tasksDoneSum += s.done;
-    if (s.pct !== null) { scoreSum += s.pct; scoreCountDays++; }
-    if (day.tasks.some(t => t.category === 'trening' && t.done)) workoutCount++;
+    tasksDone += s.done;
+    if (s.pct !== null) { scoreSum += s.pct; scoreDays++; }
+    if (day.tasks.some(t => t.category === 'trening' && t.done)) workouts++;
     if (day.water > 0) { waterSum += day.water; waterDays++; }
     if (day.sleep !== null) { sleepSum += day.sleep; sleepDays++; }
     if (day.protein > 0) { proteinSum += day.protein; proteinDays++; }
   }
+  return {
+    tasksDone,
+    avgScore: scoreDays ? Math.round(scoreSum / scoreDays) : null,
+    workouts,
+    avgWaterL: waterDays ? roundTo(waterSum / waterDays / 1000, 1) : null,
+    avgSleepH: sleepDays ? roundTo(sleepSum / sleepDays, 1) : null,
+    avgProteinG: proteinDays ? Math.round(proteinSum / proteinDays) : null,
+  };
+}
+
+function weekDelta(curVal, prevVal, unit) {
+  if (curVal === null || prevVal === null) return '';
+  const d = roundTo(curVal - prevVal, 2);
+  if (d === 0) return 'bez zmian vs poprz. tydz.';
+  const sign = d > 0 ? '+' : '';
+  return `${sign}${d}${unit} vs poprz. tydz.`;
+}
+
+function computeBestStreakEver() {
+  const dateKeys = Object.keys(STATE.days);
+  if (dateKeys.length === 0) return 0;
+  const threshold = STATE.settings.streakThreshold;
+  let cursor = dateKeys.sort()[0];
+  const end = todayStr();
+  let best = 0, current = 0;
+  while (cursor <= end) {
+    const s = computeScore(getDayReadonly(cursor));
+    if (s.pct !== null && s.pct >= threshold) {
+      current += 1;
+      if (current > best) best = current;
+    } else {
+      current = 0;
+    }
+    cursor = addDays(cursor, 1);
+  }
+  return best;
+}
+
+function computeBestDayScore() {
+  let best = null;
+  for (const [ds, day] of Object.entries(STATE.days)) {
+    const s = computeScore(day);
+    if (s.pct === null) continue;
+    if (!best || s.pct > best.pct) best = { pct: s.pct, date: ds };
+  }
+  return best;
+}
+
+function computeWeightRange() {
+  let min = null, max = null;
+  for (const [ds, day] of Object.entries(STATE.days)) {
+    if (day.weight === null) continue;
+    if (!min || day.weight < min.value) min = { value: day.weight, date: ds };
+    if (!max || day.weight > max.value) max = { value: day.weight, date: ds };
+  }
+  return min ? { min, max } : null;
+}
+
+function renderRecords() {
+  const grid = document.getElementById('recordsGrid');
+  const bestStreak = computeBestStreakEver();
+  const bestDay = computeBestDayScore();
+  const weightRange = computeWeightRange();
+
+  const boxes = [statBox(`${bestStreak} ${bestStreak === 1 ? 'dzień' : 'dni'}`, 'Najlepszy streak')];
+  if (bestDay) {
+    boxes.push(statBox(`${bestDay.pct}%`, `Najlepszy dzień (${shortLabel(bestDay.date)})`));
+  }
+  if (weightRange) {
+    boxes.push(statBox(`${formatNum(weightRange.min.value)}–${formatNum(weightRange.max.value)} kg`, 'Zakres wagi'));
+  }
+  grid.innerHTML = boxes.join('');
+}
+
+function renderStats() {
+  const today = todayStr();
+  const thisWeek = lastNDays(7, today);
+  const prevWeek = lastNDays(7, addDays(thisWeek[0], -1));
+  const range = lastNDays(currentRange, today);
+
+  const cur = computeWeekMetrics(thisWeek);
+  const prev = computeWeekMetrics(prevWeek);
 
   const summaryGrid = document.getElementById('statSummaryGrid');
   summaryGrid.innerHTML = `
-    ${statBox(tasksDoneSum, 'Wykonane zadania (7 dni)')}
-    ${statBox(scoreCountDays ? `${Math.round(scoreSum / scoreCountDays)}%` : '—', 'Średni Daily Score')}
-    ${statBox(workoutCount, 'Treningi')}
-    ${statBox(waterDays ? `${roundTo(waterSum / waterDays / 1000, 1)} L` : '—', 'Śr. nawodnienie')}
-    ${statBox(sleepDays ? `${roundTo(sleepSum / sleepDays, 1)} h` : '—', 'Śr. sen')}
-    ${statBox(proteinDays ? `${Math.round(proteinSum / proteinDays)} g` : '—', 'Śr. białko')}
+    ${statBox(cur.tasksDone, 'Wykonane zadania (7 dni)', weekDelta(cur.tasksDone, prev.tasksDone, ''))}
+    ${statBox(cur.avgScore === null ? '—' : `${cur.avgScore}%`, 'Średni Daily Score', weekDelta(cur.avgScore, prev.avgScore, '%'))}
+    ${statBox(cur.workouts, 'Treningi', weekDelta(cur.workouts, prev.workouts, ''))}
+    ${statBox(cur.avgWaterL === null ? '—' : `${cur.avgWaterL} L`, 'Śr. nawodnienie', weekDelta(cur.avgWaterL, prev.avgWaterL, ' L'))}
+    ${statBox(cur.avgSleepH === null ? '—' : `${cur.avgSleepH} h`, 'Śr. sen', weekDelta(cur.avgSleepH, prev.avgSleepH, ' h'))}
+    ${statBox(cur.avgProteinG === null ? '—' : `${cur.avgProteinG} g`, 'Śr. białko', weekDelta(cur.avgProteinG, prev.avgProteinG, ' g'))}
   `;
+
+  // ---- records ----
+  renderRecords();
 
   // ---- charts ----
   drawScoreChart(range);
@@ -900,8 +1011,8 @@ function renderStats() {
   renderHistory(range);
 }
 
-function statBox(value, label) {
-  return `<div class="stat-box"><div class="stat-box-value">${value}</div><div class="stat-box-label">${label}</div></div>`;
+function statBox(value, label, delta) {
+  return `<div class="stat-box"><div class="stat-box-value">${value}</div><div class="stat-box-label">${label}</div>${delta ? `<div class="stat-box-delta">${delta}</div>` : ''}</div>`;
 }
 
 const HISTORY_PAGE_SIZE = 5;
