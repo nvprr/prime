@@ -1,1498 +1,210 @@
-'use strict';
-
 /* ============================================================
-   PRIME — app.js
-   Single source of truth: STATE, persisted to localStorage.
+   PRIME LIFE MAXING — app.js
+   Start-up, navigation, global refresh, data-safety banners,
+   midnight rollover and the service-worker update flow.
    ============================================================ */
+(function () {
+  'use strict';
+  const Prime = window.Prime, ui = Prime.ui, h = ui.h, D = Prime.D;
+  const $ = (id) => document.getElementById(id);
 
-const STORAGE_KEY = 'prime_data_v1';
-const DATA_VERSION = 1;
+  /* ---------------- storage banner (recovery / read-only / save problems) ---------------- */
 
-const CATEGORIES = [
-  { id: 'trening',  emoji: '💪', label: 'Trening' },
-  { id: 'praca',    emoji: '💼', label: 'Praca' },
-  { id: 'rozwoj',   emoji: '🧠', label: 'Rozwój' },
-  { id: 'zdrowie',  emoji: '🥗', label: 'Zdrowie' },
-  { id: 'dom',      emoji: '🏠', label: 'Dom' },
-  { id: 'osobiste', emoji: '👤', label: 'Osobiste' },
-  { id: 'inne',     emoji: '📌', label: 'Inne' },
-];
+  function btn(label, fn, kind) { return h('button.btn.small' + (kind ? '.' + kind : ''), { type: 'button', text: label, onClick: fn }); }
 
-const WEEKDAYS_PL = ['Niedziela','Poniedziałek','Wtorek','Środa','Czwartek','Piątek','Sobota'];
-const MONTHS_PL = ['stycznia','lutego','marca','kwietnia','maja','czerwca','lipca','sierpnia','września','października','listopada','grudnia'];
-
-function defaultSettings() {
-  return {
-    waterGoal: 3.0,
-    calGoal: 2200,
-    proteinGoal: 150,
-    streakThreshold: 60,
-    units: 'metric',
-    accent: 'blue',
-  };
-}
-
-function defaultState() {
-  return {
-    version: DATA_VERSION,
-    settings: defaultSettings(),
-    days: {},
-    templates: [],
-    goals: [],
-  };
-}
-
-function defaultDay() {
-  return {
-    tasks: [],
-    water: 0,
-    protein: 0,
-    calories: 0,
-    sleep: null,
-    weight: null,
-    steps: null,
-    note: '',
-  };
-}
-
-/* ---------------- utilities ---------------- */
-
-function uid() {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-}
-
-function clamp(n, min, max) {
-  return Math.min(max, Math.max(min, n));
-}
-
-function pad2(n) { return String(n).padStart(2, '0'); }
-
-function toDateStr(date) {
-  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
-}
-
-function parseDateStr(str) {
-  const [y, m, d] = str.split('-').map(Number);
-  return new Date(y, m - 1, d);
-}
-
-function addDays(dateStr, delta) {
-  const d = parseDateStr(dateStr);
-  d.setDate(d.getDate() + delta);
-  return toDateStr(d);
-}
-
-function todayStr() {
-  return toDateStr(new Date());
-}
-
-function formatFullDate(dateStr) {
-  const d = parseDateStr(dateStr);
-  return `${d.getDate()} ${MONTHS_PL[d.getMonth()]} ${d.getFullYear()}`;
-}
-
-function formatWeekday(dateStr) {
-  const d = parseDateStr(dateStr);
-  return WEEKDAYS_PL[d.getDay()];
-}
-
-function catInfo(id) {
-  return CATEGORIES.find(c => c.id === id) || null;
-}
-
-function roundTo(n, decimals) {
-  const f = Math.pow(10, decimals);
-  return Math.round((n + Number.EPSILON) * f) / f;
-}
-
-/* ============================================================
-   PERSISTENCE
-   ============================================================ */
-
-let STATE = null;
-
-function deepMerge(defaults, loaded) {
-  if (typeof defaults !== 'object' || defaults === null) return loaded !== undefined ? loaded : defaults;
-  const out = Array.isArray(defaults) ? [] : {};
-  for (const key of Object.keys(defaults)) {
-    if (loaded && Object.prototype.hasOwnProperty.call(loaded, key)) {
-      if (typeof defaults[key] === 'object' && defaults[key] !== null && !Array.isArray(defaults[key])) {
-        out[key] = deepMerge(defaults[key], loaded[key]);
-      } else {
-        out[key] = loaded[key];
-      }
-    } else {
-      out[key] = defaults[key];
-    }
-  }
-  return out;
-}
-
-function mergeLoadedState(parsed) {
-  const merged = deepMerge(defaultState(), parsed);
-  // 'days' is a dynamic dictionary keyed by date (not a fixed-shape object), so the generic
-  // deepMerge above — which only preserves keys present in the defaults template — would
-  // silently discard every saved day. Rebuild it explicitly here instead, backfilling any
-  // fields a day might be missing (e.g. from an older data version) without dropping entries.
-  merged.days = {};
-  if (parsed && parsed.days && typeof parsed.days === 'object') {
-    for (const [dateKey, dayVal] of Object.entries(parsed.days)) {
-      merged.days[dateKey] = Object.assign(defaultDay(), dayVal);
-    }
-  }
-  merged.templates = Array.isArray(parsed && parsed.templates) ? parsed.templates : [];
-  merged.goals = Array.isArray(parsed && parsed.goals) ? parsed.goals : [];
-  return merged;
-}
-
-function loadState() {
-  let raw = null;
-  try {
-    raw = localStorage.getItem(STORAGE_KEY);
-  } catch (e) {
-    console.error('Prime: localStorage unavailable', e);
-    return defaultState();
-  }
-  if (!raw) return defaultState();
-  try {
-    const parsed = JSON.parse(raw);
-    // migration point: bump DATA_VERSION and add migration steps here in future updates
-    // without ever deleting existing user data.
-    return mergeLoadedState(parsed);
-  } catch (e) {
-    console.error('Prime: corrupt data, falling back to defaults', e);
-    return defaultState();
-  }
-}
-
-let saveTimer = null;
-function saveState() {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(STATE));
-  } catch (e) {
-    console.error('Prime: failed to save', e);
-    toast('Nie udało się zapisać danych');
-  }
-}
-
-function ensureDay(dateStr) {
-  if (!STATE.days[dateStr]) {
-    STATE.days[dateStr] = defaultDay();
-  }
-  // backfill any missing fields for days created by older versions
-  STATE.days[dateStr] = Object.assign(defaultDay(), STATE.days[dateStr]);
-  return STATE.days[dateStr];
-}
-
-function getDayReadonly(dateStr) {
-  return STATE.days[dateStr] || null;
-}
-
-/* ============================================================
-   SCORE / STREAK
-   ============================================================ */
-
-function computeScore(day) {
-  if (!day || !day.tasks || day.tasks.length === 0) return { done: 0, total: 0, pct: null };
-  const total = day.tasks.length;
-  const done = day.tasks.filter(t => t.done).length;
-  return { done, total, pct: Math.round((done / total) * 100) };
-}
-
-function computeStreak() {
-  const threshold = STATE.settings.streakThreshold;
-  let streak = 0;
-  let cursor = todayStr();
-
-  const todayDay = getDayReadonly(cursor);
-  const todayScore = computeScore(todayDay);
-  if (todayScore.pct !== null && todayScore.pct >= threshold) {
-    streak += 1;
-  }
-  cursor = addDays(cursor, -1);
-
-  // walk backward through completed days
-  for (let i = 0; i < 3650; i++) {
-    const d = getDayReadonly(cursor);
-    const s = computeScore(d);
-    if (s.pct !== null && s.pct >= threshold) {
-      streak += 1;
-      cursor = addDays(cursor, -1);
-    } else {
-      break;
-    }
-  }
-  return streak;
-}
-
-/* ============================================================
-   VIEW ROUTING
-   ============================================================ */
-
-let currentView = 'today';
-let currentDate = todayStr();
-let currentRange = 7;
-
-function switchView(view) {
-  currentView = view;
-  document.querySelectorAll('.view').forEach(el => {
-    el.hidden = el.dataset.view !== view;
-  });
-  document.querySelectorAll('.nav-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.target === view);
-  });
-  if (view === 'today') renderToday();
-  if (view === 'goals') renderGoals();
-  if (view === 'stats') renderStats();
-  if (view === 'settings') renderSettings();
-}
-
-/* ============================================================
-   TOAST
-   ============================================================ */
-
-let toastTimer = null;
-function toast(msg) {
-  const el = document.getElementById('toast');
-  el.textContent = msg;
-  el.classList.add('show');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove('show'), 1800);
-}
-
-/* ============================================================
-   MODAL HELPERS
-   ============================================================ */
-
-const modalBackdrop = document.getElementById('modalBackdrop');
-
-function openModal(modalEl) {
-  document.querySelectorAll('.modal').forEach(m => { m.hidden = true; });
-  modalEl.hidden = false;
-  modalBackdrop.hidden = false;
-}
-
-function closeModals() {
-  modalBackdrop.hidden = true;
-  document.querySelectorAll('.modal').forEach(m => { m.hidden = true; });
-}
-
-modalBackdrop.addEventListener('click', (e) => {
-  if (e.target === modalBackdrop) closeModals();
-});
-
-/* ============================================================
-   RENDER: TODAY
-   ============================================================ */
-
-function renderToday() {
-  document.getElementById('dateWeekday').textContent = formatWeekday(currentDate);
-  document.getElementById('dateFull').textContent = formatFullDate(currentDate);
-  document.getElementById('datePicker').value = currentDate;
-
-  document.getElementById('nextDay').disabled = false;
-
-  const day = ensureDay(currentDate);
-  const score = computeScore(day);
-
-  document.getElementById('scoreCount').textContent = `${score.done} / ${score.total}`;
-  document.getElementById('scorePercent').textContent = score.pct === null ? '—' : `${score.pct}%`;
-  document.getElementById('scoreBar').style.width = `${score.pct || 0}%`;
-
-  const streak = computeStreak();
-  document.getElementById('streakText').textContent = `${streak} ${streak === 1 ? 'dzień' : 'dni'}`;
-
-  // task list
-  const list = document.getElementById('taskList');
-  const empty = document.getElementById('tasksEmpty');
-  list.innerHTML = '';
-  const sorted = [...day.tasks].sort((a, b) => {
-    if (!!a.priority !== !!b.priority) return a.priority ? -1 : 1;
-    if (a.time && b.time) return a.time.localeCompare(b.time);
-    if (a.time) return -1;
-    if (b.time) return 1;
-    return 0;
-  });
-  if (sorted.length === 0) {
-    empty.hidden = false;
-  } else {
-    empty.hidden = true;
-    for (const task of sorted) {
-      list.appendChild(renderTaskItem(task));
-    }
+  function retryLoad() {
+    Prime.initState();
+    Prime.date = Prime.today();
+    boot2();
+    ui.updateBanner();
+    Prime.refresh();
+    if (!Prime.locked) ui.toast('Dane wczytane');
   }
 
-  // trackers
-  const waterGoal = STATE.settings.waterGoal;
-  document.getElementById('waterVal').textContent = roundTo(day.water / 1000, 2);
-  document.getElementById('waterGoalDisp').textContent = roundTo(waterGoal, 2);
-  document.getElementById('waterBar').style.width = `${clamp((day.water / 1000 / waterGoal) * 100, 0, 100)}%`;
-
-  document.getElementById('proteinVal').textContent = day.protein || 0;
-  document.getElementById('proteinGoalDisp').textContent = STATE.settings.proteinGoal;
-  document.getElementById('proteinBar').style.width = `${clamp((day.protein / STATE.settings.proteinGoal) * 100, 0, 100)}%`;
-  document.getElementById('proteinInput').value = '';
-
-  document.getElementById('calVal').textContent = day.calories || 0;
-  document.getElementById('calGoalDisp').textContent = STATE.settings.calGoal;
-  document.getElementById('calBar').style.width = `${clamp((day.calories / STATE.settings.calGoal) * 100, 0, 100)}%`;
-  document.getElementById('calInput').value = day.calories || '';
-
-  document.getElementById('sleepVal').textContent = day.sleep !== null ? day.sleep : '—';
-  document.getElementById('sleepInput').value = day.sleep !== null ? day.sleep : '';
-
-  document.getElementById('weightVal').textContent = day.weight !== null ? day.weight : '—';
-  document.getElementById('weightInput').value = day.weight !== null ? day.weight : '';
-
-  document.getElementById('stepsVal').textContent = day.steps !== null ? day.steps : '—';
-  document.getElementById('stepsInput').value = day.steps !== null ? day.steps : '';
-}
-
-function renderTaskItem(task) {
-  const li = document.createElement('li');
-  li.className = 'task-item' + (task.done ? ' done' : '') + (task.priority ? ' priority' : '');
-  li.dataset.id = task.id;
-
-  const cat = catInfo(task.category);
-  const isPriority = !!task.priority;
-
-  li.innerHTML = `
-    <button class="task-check ${task.done ? 'checked' : ''}" data-action="toggle" aria-label="Odhacz zadanie">
-      <svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-    </button>
-    <div class="task-body" data-action="edit">
-      <span class="task-name">${escapeHtml(task.name)}</span>
-      <span class="task-meta">
-        ${task.time ? `<span>${task.time}</span>` : ''}
-        ${cat ? `<span class="task-cat-icon">${cat.emoji} ${cat.label}</span>` : ''}
-      </span>
-    </div>
-    <button class="task-star-btn ${isPriority ? 'active' : ''}" data-action="star" aria-label="${isPriority ? 'Usuń z Big 3' : 'Dodaj do Big 3'}">${isPriority ? '★' : '☆'}</button>
-    <button class="task-edit-btn" data-action="edit" aria-label="Edytuj">⋯</button>
-  `;
-  return li;
-}
-
-function escapeHtml(str) {
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
-}
-
-document.getElementById('taskList').addEventListener('click', (e) => {
-  const item = e.target.closest('.task-item');
-  if (!item) return;
-  const id = item.dataset.id;
-  const day = ensureDay(currentDate);
-  const task = day.tasks.find(t => t.id === id);
-  if (!task) return;
-
-  const action = e.target.closest('[data-action]')?.dataset.action;
-  if (action === 'toggle') {
-    task.done = !task.done;
-    saveState();
-    renderToday();
-  } else if (action === 'edit') {
-    openTaskModal(task);
-  } else if (action === 'star') {
-    if (!task.priority) {
-      const priorityCount = day.tasks.filter(t => t.priority).length;
-      if (priorityCount >= 3) {
-        toast('Big 3 — możesz oznaczyć max 3 zadania');
-        return;
-      }
-    }
-    task.priority = !task.priority;
-    saveState();
-    renderToday();
-  }
-});
-
-/* -------- date navigation -------- */
-
-document.getElementById('prevDay').addEventListener('click', () => {
-  currentDate = addDays(currentDate, -1);
-  renderToday();
-});
-document.getElementById('nextDay').addEventListener('click', () => {
-  currentDate = addDays(currentDate, 1);
-  renderToday();
-});
-document.getElementById('dateDisplay').addEventListener('click', () => {
-  document.getElementById('datePicker').focus();
-  document.getElementById('datePicker').click();
-  if (typeof document.getElementById('datePicker').showPicker === 'function') {
-    try { document.getElementById('datePicker').showPicker(); } catch (e) { /* ignore */ }
-  }
-});
-document.getElementById('datePicker').addEventListener('change', (e) => {
-  if (e.target.value) {
-    currentDate = e.target.value;
-    renderToday();
-  }
-});
-
-/* -------- task modal -------- */
-
-let editingTaskId = null;
-let selectedCategory = null;
-
-function buildCategoryGrid() {
-  const grid = document.getElementById('categoryGrid');
-  grid.innerHTML = '';
-  for (const cat of CATEGORIES) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'category-chip' + (selectedCategory === cat.id ? ' selected' : '');
-    btn.dataset.cat = cat.id;
-    btn.innerHTML = `<span class="cat-emoji">${cat.emoji}</span><span>${cat.label}</span>`;
-    btn.addEventListener('click', () => {
-      selectedCategory = selectedCategory === cat.id ? null : cat.id;
-      buildCategoryGrid();
+  async function startFresh() {
+    const ok = await ui.confirm({
+      title: 'Zacząć od pustej aplikacji?',
+      text: 'Uszkodzone dane zostaną najpierw zapisane jako osobna kopia w tej przeglądarce (możesz też pobrać je do pliku). Jeśli kopia się nie uda, nic nie zostanie zmienione.',
+      okLabel: 'Zacznij od nowa',
     });
-    grid.appendChild(btn);
+    if (!ok) return;
+    const r = Prime.ST.startFreshAfterCorrupt(Prime.ls, Prime.startup.raw);
+    if (!r.ok) { ui.toast('Nie udało się zrobić kopii — nic nie zmieniono'); return; }
+    retryLoad();
   }
-}
 
-function openTaskModal(task) {
-  editingTaskId = task ? task.id : null;
-  selectedCategory = task ? task.category : null;
-  document.getElementById('taskModalTitle').textContent = task ? 'Edytuj zadanie' : 'Nowe zadanie';
-  document.getElementById('taskName').value = task ? task.name : '';
-  document.getElementById('taskTime').value = task ? (task.time || '') : '';
-  document.getElementById('taskDeleteBtn').hidden = !task;
-  buildCategoryGrid();
-  openModal(document.getElementById('taskModal'));
-  setTimeout(() => document.getElementById('taskName').focus(), 50);
-}
-
-document.getElementById('addTaskBtn').addEventListener('click', () => openTaskModal(null));
-document.getElementById('taskCancelBtn').addEventListener('click', closeModals);
-
-document.getElementById('taskSaveBtn').addEventListener('click', () => {
-  const name = document.getElementById('taskName').value.trim();
-  if (!name) { toast('Podaj nazwę zadania'); return; }
-  const time = document.getElementById('taskTime').value || null;
-  const day = ensureDay(currentDate);
-
-  if (editingTaskId) {
-    const task = day.tasks.find(t => t.id === editingTaskId);
-    if (task) {
-      task.name = name;
-      task.time = time;
-      task.category = selectedCategory;
+  function updateStorageBanner() {
+    const el = $('storageBanner'); ui.clear(el);
+    const st = Prime.startup, info = st.info || {};
+    const parts = [];
+    const dl = () => ui.download('prime-surowe-dane.json', st.raw || '', 'text/plain');
+    if (st.status === 'corrupt') {
+      parts.push(h('strong', { text: 'Dane są nieczytelne — aplikacja działa tylko do odczytu.' }));
+      parts.push(h('span', { text: ' Nic nie zostało nadpisane. Pobierz surową kopię i dopiero potem zdecyduj, co dalej.' }));
+      parts.push(h('div.banner-actions', null, btn('Pobierz surowe dane', dl, 'primary'), btn('Spróbuj ponownie', retryLoad), btn('Zacznij od nowa…', startFresh, 'danger')));
+    } else if (Prime.locked) {
+      const why = info.reason === 'newer-version' ? `Dane pochodzą z nowszej wersji aplikacji (v${info.version}).`
+        : info.reason === 'backup-failed' ? 'Nie udało się zapisać kopii bezpieczeństwa przed aktualizacją danych (brak miejsca?).'
+        : info.reason === 'save-failed' ? 'Nie udało się zapisać zaktualizowanych danych.'
+        : info.reason === 'verify-failed' ? 'Weryfikacja zaktualizowanych danych nie przeszła.'
+        : info.reason === 'storage-unavailable' ? 'Pamięć przeglądarki jest niedostępna.'
+        : 'Aplikacja jest w trybie tylko do odczytu.';
+      parts.push(h('strong', { text: 'Tryb tylko do odczytu. ' }));
+      parts.push(h('span', { text: why + ' Twoje oryginalne dane nie zostały zmienione.' }));
+      const acts = [];
+      if (st.raw) acts.push(btn('Pobierz kopię danych', dl, 'primary'));
+      acts.push(btn('Spróbuj ponownie', retryLoad));
+      parts.push(h('div.banner-actions', null, acts));
+    } else if (Prime.storageIssue === 'quota' || Prime.storageIssue === 'write') {
+      parts.push(h('strong', { text: Prime.storageIssue === 'quota' ? 'Brak miejsca w pamięci przeglądarki — zmiany mogą się nie zapisywać.' : 'Nie udało się zapisać danych.' }));
+      parts.push(h('div.banner-actions', null, btn('Wyeksportuj dane', () => Prime.mods.settings.exportData(), 'primary'), btn('Spróbuj zapisać', () => { if (Prime.save()) ui.toast('Zapisano'); })));
+    } else if (Prime.volatile) {
+      parts.push(h('strong', { text: 'Pamięć przeglądarki jest zablokowana.' }));
+      parts.push(h('span', { text: ' Dane zostaną utracone po zamknięciu karty. Wyeksportuj je przed wyjściem.' }));
+      parts.push(h('div.banner-actions', null, btn('Wyeksportuj dane', () => Prime.mods.settings.exportData(), 'primary')));
     }
-  } else {
-    day.tasks.push({ id: uid(), name, time, category: selectedCategory, done: false, priority: false });
+    el.hidden = parts.length === 0;
+    parts.forEach(p => el.appendChild(p));
   }
-  saveState();
-  closeModals();
-  renderToday();
-});
+  ui.updateBanner = updateStorageBanner;
 
-document.getElementById('taskDeleteBtn').addEventListener('click', () => {
-  const day = ensureDay(currentDate);
-  day.tasks = day.tasks.filter(t => t.id !== editingTaskId);
-  saveState();
-  closeModals();
-  renderToday();
-});
+  /* ---------------- navigation / refresh ---------------- */
 
-/* -------- trackers -------- */
-
-document.querySelectorAll('[data-water]').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const delta = Number(btn.dataset.water);
-    const day = ensureDay(currentDate);
-    day.water = clamp((day.water || 0) + delta, 0, 20000);
-    saveState();
-    renderToday();
-  });
-});
-
-document.querySelectorAll('[data-protein]').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const delta = Number(btn.dataset.protein);
-    const day = ensureDay(currentDate);
-    day.protein = clamp((day.protein || 0) + delta, 0, 2000);
-    saveState();
-    renderToday();
-  });
-});
-
-document.getElementById('proteinInput').addEventListener('change', (e) => {
-  const val = Number(e.target.value);
-  if (!isNaN(val) && e.target.value !== '') {
-    const day = ensureDay(currentDate);
-    day.protein = clamp(val, 0, 2000);
-    saveState();
-    renderToday();
-  }
-});
-
-document.getElementById('calInput').addEventListener('change', (e) => {
-  const val = Number(e.target.value);
-  const day = ensureDay(currentDate);
-  day.calories = e.target.value === '' ? 0 : clamp(val, 0, 15000);
-  saveState();
-  renderToday();
-});
-
-document.getElementById('sleepInput').addEventListener('change', (e) => {
-  const day = ensureDay(currentDate);
-  day.sleep = e.target.value === '' ? null : clamp(Number(e.target.value), 0, 24);
-  saveState();
-  renderToday();
-});
-
-document.getElementById('weightInput').addEventListener('change', (e) => {
-  const day = ensureDay(currentDate);
-  day.weight = e.target.value === '' ? null : clamp(Number(e.target.value), 0, 500);
-  saveState();
-  renderToday();
-});
-
-document.getElementById('stepsInput').addEventListener('change', (e) => {
-  const day = ensureDay(currentDate);
-  day.steps = e.target.value === '' ? null : clamp(Math.round(Number(e.target.value)), 0, 200000);
-  saveState();
-  renderToday();
-});
-
-/* -------- templates: apply -------- */
-
-document.getElementById('useTemplateBtn').addEventListener('click', () => {
-  const list = document.getElementById('templatePickList');
-  const empty = document.getElementById('templatePickEmpty');
-  list.innerHTML = '';
-  if (STATE.templates.length === 0) {
-    empty.hidden = false;
-  } else {
-    empty.hidden = true;
-    for (const tpl of STATE.templates) {
-      const li = document.createElement('li');
-      li.className = 'template-pick-item';
-      li.innerHTML = `
-        <div>
-          <div class="template-pick-name">${escapeHtml(tpl.name)}</div>
-          <div class="template-pick-count">${tpl.tasks.length} zadań</div>
-        </div>
-        <button class="template-pick-apply" data-id="${tpl.id}">Zastosuj</button>
-      `;
-      list.appendChild(li);
-    }
-  }
-  openModal(document.getElementById('templateModal'));
-});
-
-document.getElementById('templatePickList').addEventListener('click', (e) => {
-  const btn = e.target.closest('.template-pick-apply');
-  if (!btn) return;
-  const tpl = STATE.templates.find(t => t.id === btn.dataset.id);
-  if (!tpl) return;
-  const day = ensureDay(currentDate);
-  for (const t of tpl.tasks) {
-    day.tasks.push({ id: uid(), name: t.name, time: null, category: t.category || null, done: false, priority: false });
-  }
-  saveState();
-  closeModals();
-  renderToday();
-  toast('Szablon zastosowany');
-});
-
-document.getElementById('templateCancelBtn').addEventListener('click', closeModals);
-
-/* -------- day summary -------- */
-
-document.getElementById('openSummaryBtn').addEventListener('click', () => {
-  const day = ensureDay(currentDate);
-  const score = computeScore(day);
-  const workoutTask = day.tasks.find(t => t.category === 'trening' && t.done);
-
-  const grid = document.getElementById('summaryGrid');
-  grid.innerHTML = `
-    ${box('Daily Score', score.pct === null ? '—' : `${score.pct}%`)}
-    ${box('Zadania', `${score.done} / ${score.total}`)}
-    ${box('Woda', `${roundTo(day.water / 1000, 2)} L`)}
-    ${box('Białko', `${day.protein || 0} g`)}
-    ${box('Trening', workoutTask ? workoutTask.name : '—')}
-    ${box('Sen', day.sleep !== null ? `${day.sleep} h` : '—')}
-  `;
-  const status = document.getElementById('summaryStatus');
-  const threshold = STATE.settings.streakThreshold;
-  if (score.pct !== null && score.pct >= threshold) {
-    status.textContent = '🔥 Dzień zaliczony';
-    status.className = 'summary-status';
-  } else {
-    status.textContent = 'Dzień niezaliczony';
-    status.className = 'summary-status miss';
-  }
-  document.getElementById('summaryNote').value = day.note || '';
-  summaryNoteDate = currentDate;
-  openModal(document.getElementById('summaryModal'));
-});
-
-function box(label, value) {
-  return `<div class="summary-box"><div class="summary-box-label">${label}</div><div class="summary-box-value">${value}</div></div>`;
-}
-
-let summaryNoteDate = null;
-function saveSummaryNote() {
-  if (!summaryNoteDate) return;
-  const day = ensureDay(summaryNoteDate);
-  const val = document.getElementById('summaryNote').value;
-  if (day.note !== val) {
-    day.note = val;
-    saveState();
-  }
-}
-document.getElementById('summaryNote').addEventListener('blur', saveSummaryNote);
-document.getElementById('summaryCloseBtn').addEventListener('click', () => {
-  saveSummaryNote();
-  closeModals();
-});
-
-/* ============================================================
-   RENDER: GOALS
-   ============================================================ */
-
-function renderGoals() {
-  const list = document.getElementById('goalList');
-  const empty = document.getElementById('goalsEmpty');
-  list.innerHTML = '';
-  if (STATE.goals.length === 0) {
-    empty.hidden = false;
-    return;
-  }
-  empty.hidden = true;
-  for (const goal of STATE.goals) {
-    const pct = goal.target !== 0 ? clamp((goal.current / goal.target) * 100, 0, 100) : 0;
-    const li = document.createElement('li');
-    li.className = 'goal-item';
-    li.dataset.id = goal.id;
-    li.innerHTML = `
-      <div class="goal-top">
-        <div>
-          <div class="goal-name">${escapeHtml(goal.name)}</div>
-          ${goal.desc ? `<div class="goal-desc">${escapeHtml(goal.desc)}</div>` : ''}
-        </div>
-        <button class="goal-edit-btn" data-action="edit">⋯</button>
-      </div>
-      <div class="goal-values">
-        <span class="goal-current">${formatNum(goal.current)}</span>
-        <span class="goal-sep">/</span>
-        <span class="goal-target">${formatNum(goal.target)} ${escapeHtml(goal.unit || '')}</span>
-      </div>
-      <div class="progress-track thin"><div class="progress-fill" style="width:${pct}%"></div></div>
-      ${goal.deadline ? `<div class="goal-deadline">Termin: ${formatFullDate(goal.deadline)}</div>` : ''}
-    `;
-    list.appendChild(li);
-  }
-}
-
-function formatNum(n) {
-  if (n === null || n === undefined || isNaN(n)) return '0';
-  return Number.isInteger(n) ? n : roundTo(n, 2);
-}
-
-document.getElementById('goalList').addEventListener('click', (e) => {
-  const item = e.target.closest('.goal-item');
-  if (!item) return;
-  const goal = STATE.goals.find(g => g.id === item.dataset.id);
-  if (goal) openGoalModal(goal);
-});
-
-let editingGoalId = null;
-
-function openGoalModal(goal) {
-  editingGoalId = goal ? goal.id : null;
-  document.getElementById('goalModalTitle').textContent = goal ? 'Edytuj cel' : 'Nowy cel';
-  document.getElementById('goalName').value = goal ? goal.name : '';
-  document.getElementById('goalDesc').value = goal ? (goal.desc || '') : '';
-  document.getElementById('goalCurrent').value = goal ? goal.current : '';
-  document.getElementById('goalTarget').value = goal ? goal.target : '';
-  document.getElementById('goalUnit').value = goal ? (goal.unit || '') : '';
-  document.getElementById('goalDeadline').value = goal ? (goal.deadline || '') : '';
-  document.getElementById('goalDeleteBtn').hidden = !goal;
-  openModal(document.getElementById('goalModal'));
-}
-
-document.getElementById('addGoalBtn').addEventListener('click', () => openGoalModal(null));
-document.getElementById('goalCancelBtn').addEventListener('click', closeModals);
-
-document.getElementById('goalSaveBtn').addEventListener('click', () => {
-  const name = document.getElementById('goalName').value.trim();
-  if (!name) { toast('Podaj nazwę celu'); return; }
-  const current = Number(document.getElementById('goalCurrent').value) || 0;
-  const target = Number(document.getElementById('goalTarget').value) || 0;
-  const unit = document.getElementById('goalUnit').value.trim();
-  const desc = document.getElementById('goalDesc').value.trim();
-  const deadline = document.getElementById('goalDeadline').value || null;
-
-  if (editingGoalId) {
-    const goal = STATE.goals.find(g => g.id === editingGoalId);
-    if (goal) Object.assign(goal, { name, current, target, unit, desc, deadline });
-  } else {
-    STATE.goals.push({ id: uid(), name, current, target, unit, desc, deadline });
-  }
-  saveState();
-  closeModals();
-  renderGoals();
-});
-
-document.getElementById('goalDeleteBtn').addEventListener('click', () => {
-  STATE.goals = STATE.goals.filter(g => g.id !== editingGoalId);
-  saveState();
-  closeModals();
-  renderGoals();
-});
-
-/* ============================================================
-   RENDER: STATS
-   ============================================================ */
-
-document.getElementById('rangeSwitch').addEventListener('click', (e) => {
-  const btn = e.target.closest('.range-btn');
-  if (!btn) return;
-  currentRange = Number(btn.dataset.range);
-  document.querySelectorAll('.range-btn').forEach(b => b.classList.toggle('active', b === btn));
-  historyExpanded = false;
-  renderStats();
-});
-
-document.getElementById('historyMoreBtn').addEventListener('click', () => {
-  historyExpanded = !historyExpanded;
-  renderStats();
-});
-
-function lastNDays(n, endDateStr) {
-  const out = [];
-  let cursor = endDateStr;
-  for (let i = 0; i < n; i++) {
-    out.unshift(cursor);
-    cursor = addDays(cursor, -1);
-  }
-  return out;
-}
-
-/* -------- metric detail (tap a chart card in Stats) -------- */
-
-const METRIC_TITLES = {
-  score: 'Daily Score',
-  water: 'Nawodnienie',
-  weight: 'Masa ciała',
-  workouts: 'Treningi',
-};
-
-function buildMetricRows(metric, range) {
-  const reversed = [...range].reverse(); // newest first
-  const rows = [];
-
-  if (metric === 'score') {
-    for (const ds of reversed) {
-      const s = computeScore(getDayReadonly(ds));
-      if (s.pct === null) continue;
-      rows.push({ date: ds, valueLabel: `${s.pct}%`, pct: s.pct, sub: `${s.done}/${s.total} zadań` });
-    }
-  } else if (metric === 'water') {
-    for (const ds of reversed) {
-      const day = getDayReadonly(ds);
-      if (!day || day.water <= 0) continue;
-      const liters = roundTo(day.water / 1000, 2);
-      rows.push({ date: ds, valueLabel: `${liters} L`, pct: clamp((liters / STATE.settings.waterGoal) * 100, 0, 100), _liters: liters });
-    }
-  } else if (metric === 'weight') {
-    for (const ds of reversed) {
-      const day = getDayReadonly(ds);
-      if (!day || day.weight === null) continue;
-      rows.push({ date: ds, valueLabel: `${day.weight} kg`, _weight: day.weight });
-    }
-    if (rows.length) {
-      const vals = rows.map(r => r._weight);
-      const mn = Math.min(...vals), mx = Math.max(...vals);
-      const span = mx - mn || 1;
-      rows.forEach(r => { r.pct = ((r._weight - mn) / span) * 100; });
-    }
-  } else if (metric === 'workouts') {
-    for (const ds of reversed) {
-      const day = getDayReadonly(ds);
-      if (!day) continue;
-      const done = day.tasks.filter(t => t.category === 'trening' && t.done);
-      if (done.length === 0) continue;
-      rows.push({ date: ds, valueLabel: done.map(t => t.name).join(', '), pct: 100 });
-    }
-  }
-  return rows;
-}
-
-function buildMetricSummary(metric, rows) {
-  if (rows.length === 0) return [];
-  if (metric === 'score') {
-    const avg = Math.round(rows.reduce((a, r) => a + r.pct, 0) / rows.length);
-    return [box('Średnia', `${avg}%`), box('Dni z danymi', String(rows.length))];
-  }
-  if (metric === 'water') {
-    const avg = roundTo(rows.reduce((a, r) => a + r._liters, 0) / rows.length, 2);
-    return [box('Średnio', `${avg} L`), box('Cel dzienny', `${STATE.settings.waterGoal} L`)];
-  }
-  if (metric === 'weight') {
-    const newest = rows[0]._weight;
-    const oldest = rows[rows.length - 1]._weight;
-    const delta = roundTo(newest - oldest, 2);
-    const sign = delta > 0 ? '+' : '';
-    return [box('Aktualna', `${newest} kg`), box('Zmiana w okresie', `${sign}${delta} kg`)];
-  }
-  if (metric === 'workouts') {
-    return [box('Liczba treningów', String(rows.length))];
-  }
-  return [];
-}
-
-function openMetricDetail(metric) {
-  const range = lastNDays(currentRange, todayStr());
-  const rows = buildMetricRows(metric, range);
-
-  document.getElementById('metricModalTitle').textContent = METRIC_TITLES[metric] || 'Szczegóły';
-  document.getElementById('metricSummaryGrid').innerHTML = buildMetricSummary(metric, rows).join('');
-
-  const list = document.getElementById('metricDetailList');
-  const empty = document.getElementById('metricDetailEmpty');
-  list.innerHTML = '';
-  if (rows.length === 0) {
-    empty.hidden = false;
-  } else {
-    empty.hidden = true;
-    for (const r of rows) {
-      const d = parseDateStr(r.date);
-      const li = document.createElement('li');
-      li.className = 'history-item';
-      li.innerHTML = `
-        <span class="history-date">${pad2(d.getDate())}.${pad2(d.getMonth() + 1)}</span>
-        <span class="history-bar-track"><span class="history-bar-fill" style="width:${r.pct || 0}%"></span></span>
-        <span class="history-pct">${escapeHtml(r.valueLabel)}${r.sub ? ` · ${escapeHtml(r.sub)}` : ''}</span>
-      `;
-      list.appendChild(li);
-    }
-  }
-
-  openModal(document.getElementById('metricModal'));
-}
-
-document.querySelector('.chart-grid').addEventListener('click', (e) => {
-  const card = e.target.closest('.chart-card');
-  if (!card) return;
-  openMetricDetail(card.dataset.metric);
-});
-document.querySelector('.chart-grid').addEventListener('keydown', (e) => {
-  if (e.key !== 'Enter' && e.key !== ' ') return;
-  const card = e.target.closest('.chart-card');
-  if (!card) return;
-  e.preventDefault();
-  openMetricDetail(card.dataset.metric);
-});
-document.getElementById('metricModalCloseBtn').addEventListener('click', closeModals);
-
-function computeWeekMetrics(dates) {
-  let tasksDone = 0, scoreSum = 0, scoreDays = 0, workouts = 0, waterSum = 0, waterDays = 0, sleepSum = 0, sleepDays = 0, proteinSum = 0, proteinDays = 0;
-  for (const ds of dates) {
-    const day = getDayReadonly(ds);
-    if (!day) continue;
-    const s = computeScore(day);
-    tasksDone += s.done;
-    if (s.pct !== null) { scoreSum += s.pct; scoreDays++; }
-    if (day.tasks.some(t => t.category === 'trening' && t.done)) workouts++;
-    if (day.water > 0) { waterSum += day.water; waterDays++; }
-    if (day.sleep !== null) { sleepSum += day.sleep; sleepDays++; }
-    if (day.protein > 0) { proteinSum += day.protein; proteinDays++; }
-  }
-  return {
-    tasksDone,
-    avgScore: scoreDays ? Math.round(scoreSum / scoreDays) : null,
-    workouts,
-    avgWaterL: waterDays ? roundTo(waterSum / waterDays / 1000, 1) : null,
-    avgSleepH: sleepDays ? roundTo(sleepSum / sleepDays, 1) : null,
-    avgProteinG: proteinDays ? Math.round(proteinSum / proteinDays) : null,
+  const RENDER = {
+    today: () => Prime.mods.today.render(),
+    goals: () => Prime.mods.goals.render(),
+    stats: () => Prime.mods.stats.render(),
+    settings: () => Prime.mods.settings.render(),
   };
-}
 
-function weekDelta(curVal, prevVal, unit) {
-  if (curVal === null || prevVal === null) return '';
-  const d = roundTo(curVal - prevVal, 2);
-  if (d === 0) return 'bez zmian vs poprz. tydz.';
-  const sign = d > 0 ? '+' : '';
-  return `${sign}${d}${unit} vs poprz. tydz.`;
-}
-
-function computeBestStreakEver() {
-  const dateKeys = Object.keys(STATE.days);
-  if (dateKeys.length === 0) return 0;
-  const threshold = STATE.settings.streakThreshold;
-  let cursor = dateKeys.sort()[0];
-  const end = todayStr();
-  let best = 0, current = 0;
-  while (cursor <= end) {
-    const s = computeScore(getDayReadonly(cursor));
-    if (s.pct !== null && s.pct >= threshold) {
-      current += 1;
-      if (current > best) best = current;
-    } else {
-      current = 0;
-    }
-    cursor = addDays(cursor, 1);
+  function renderCurrent() {
+    try { RENDER[Prime.view](); } catch (e) { console.error(e); ui.toast('Błąd wyświetlania: ' + (e.message || e)); }
+    if (ui.panelOpen()) { try { ui.rerenderPanel(); } catch (e) { console.error(e); } }
   }
-  return best;
-}
 
-function computeBestDayScore() {
-  let best = null;
-  for (const [ds, day] of Object.entries(STATE.days)) {
-    const s = computeScore(day);
-    if (s.pct === null) continue;
-    if (!best || s.pct > best.pct) best = { pct: s.pct, date: ds };
-  }
-  return best;
-}
+  Prime.refresh = renderCurrent;
 
-function computeWeightRange() {
-  let min = null, max = null;
-  for (const [ds, day] of Object.entries(STATE.days)) {
-    if (day.weight === null) continue;
-    if (!min || day.weight < min.value) min = { value: day.weight, date: ds };
-    if (!max || day.weight > max.value) max = { value: day.weight, date: ds };
-  }
-  return min ? { min, max } : null;
-}
-
-function renderRecords() {
-  const grid = document.getElementById('recordsGrid');
-  const bestStreak = computeBestStreakEver();
-  const bestDay = computeBestDayScore();
-  const weightRange = computeWeightRange();
-
-  const boxes = [statBox(`${bestStreak} ${bestStreak === 1 ? 'dzień' : 'dni'}`, 'Najlepszy streak')];
-  if (bestDay) {
-    boxes.push(statBox(`${bestDay.pct}%`, `Najlepszy dzień (${shortLabel(bestDay.date)})`));
-  }
-  if (weightRange) {
-    boxes.push(statBox(`${formatNum(weightRange.min.value)}–${formatNum(weightRange.max.value)} kg`, 'Zakres wagi'));
-  }
-  grid.innerHTML = boxes.join('');
-}
-
-function renderStats() {
-  const today = todayStr();
-  const thisWeek = lastNDays(7, today);
-  const prevWeek = lastNDays(7, addDays(thisWeek[0], -1));
-  const range = lastNDays(currentRange, today);
-
-  const cur = computeWeekMetrics(thisWeek);
-  const prev = computeWeekMetrics(prevWeek);
-
-  const summaryGrid = document.getElementById('statSummaryGrid');
-  summaryGrid.innerHTML = `
-    ${statBox(cur.tasksDone, 'Wykonane zadania (7 dni)', weekDelta(cur.tasksDone, prev.tasksDone, ''))}
-    ${statBox(cur.avgScore === null ? '—' : `${cur.avgScore}%`, 'Średni Daily Score', weekDelta(cur.avgScore, prev.avgScore, '%'))}
-    ${statBox(cur.workouts, 'Treningi', weekDelta(cur.workouts, prev.workouts, ''))}
-    ${statBox(cur.avgWaterL === null ? '—' : `${cur.avgWaterL} L`, 'Śr. nawodnienie', weekDelta(cur.avgWaterL, prev.avgWaterL, ' L'))}
-    ${statBox(cur.avgSleepH === null ? '—' : `${cur.avgSleepH} h`, 'Śr. sen', weekDelta(cur.avgSleepH, prev.avgSleepH, ' h'))}
-    ${statBox(cur.avgProteinG === null ? '—' : `${cur.avgProteinG} g`, 'Śr. białko', weekDelta(cur.avgProteinG, prev.avgProteinG, ' g'))}
-  `;
-
-  // ---- records ----
-  renderRecords();
-
-  // ---- charts ----
-  drawScoreChart(range);
-  drawWaterChart(range);
-  drawWeightChart(range);
-  drawWorkoutsChart(range);
-
-  // ---- history ----
-  renderHistory(range);
-}
-
-function statBox(value, label, delta) {
-  return `<div class="stat-box"><div class="stat-box-value">${value}</div><div class="stat-box-label">${label}</div>${delta ? `<div class="stat-box-delta">${delta}</div>` : ''}</div>`;
-}
-
-const HISTORY_PAGE_SIZE = 5;
-let historyExpanded = false;
-
-function renderHistory(range) {
-  const list = document.getElementById('historyList');
-  const empty = document.getElementById('historyEmpty');
-  const moreBtn = document.getElementById('historyMoreBtn');
-  list.innerHTML = '';
-  const reversed = [...range].reverse();
-  const withData = reversed.filter(ds => getDayReadonly(ds) && getDayReadonly(ds).tasks.length > 0);
-
-  if (withData.length === 0) {
-    empty.hidden = false;
-    moreBtn.hidden = true;
-    return;
-  }
-  empty.hidden = true;
-
-  const visibleCount = historyExpanded ? Math.min(withData.length, 30) : Math.min(withData.length, HISTORY_PAGE_SIZE);
-  moreBtn.hidden = withData.length <= HISTORY_PAGE_SIZE;
-  moreBtn.textContent = historyExpanded ? 'Pokaż mniej' : `Pokaż więcej (${withData.length - HISTORY_PAGE_SIZE})`;
-
-  for (const ds of withData.slice(0, visibleCount)) {
-    const day = getDayReadonly(ds);
-    const s = computeScore(day);
-    const d = parseDateStr(ds);
-    const li = document.createElement('li');
-    li.className = 'history-item';
-    li.innerHTML = `
-      <span class="history-date">${pad2(d.getDate())}.${pad2(d.getMonth() + 1)}</span>
-      <span class="history-bar-track"><span class="history-bar-fill" style="width:${s.pct}%"></span></span>
-      <span class="history-pct">${s.pct}%</span>
-    `;
-    li.addEventListener('click', () => {
-      currentDate = ds;
-      switchView('today');
+  Prime.showView = function (name) {
+    if (!RENDER[name]) return;
+    ui.closePanel(); ui.closeModals();
+    Prime.view = name;
+    document.querySelectorAll('.view').forEach(v => { v.hidden = v.dataset.view !== name; });
+    document.querySelectorAll('.nav-btn').forEach(b => {
+      const on = b.dataset.target === name;
+      b.classList.toggle('active', on);
+      if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
     });
-    list.appendChild(li);
-  }
-}
-
-/* ============================================================
-   CANVAS CHARTS (dependency-free)
-   ============================================================ */
-
-const CHART_HEIGHT = 86; // must match the canvas `height` attribute in index.html
-
-function setupCanvas(canvas) {
-  const dpr = window.devicePixelRatio || 1;
-  const cssWidth = canvas.parentElement.clientWidth - 0;
-  // Fixed, not read back from canvas.height/getAttribute('height'): those reflect whatever
-  // was last assigned, and since we assign a DPR-scaled pixel value below, reading it back
-  // on the next render would re-scale an already-scaled number — compounding on every
-  // render until the chart grew without bound (exactly the "charts keep getting taller"
-  // bug). A fixed constant has no state to compound.
-  const cssHeight = CHART_HEIGHT;
-  canvas.style.width = cssWidth + 'px';
-  canvas.style.height = cssHeight + 'px';
-  canvas.width = cssWidth * dpr;
-  canvas.height = cssHeight * dpr;
-  const ctx = canvas.getContext('2d');
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  return { ctx, w: cssWidth, h: cssHeight };
-}
-
-function getAccentColor() {
-  return getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#5b8def';
-}
-
-function drawLineChart(canvasId, emptyId, points, opts = {}) {
-  const canvas = document.getElementById(canvasId);
-  const emptyEl = document.getElementById(emptyId);
-  const valid = points.filter(p => p.y !== null && p.y !== undefined);
-  if (valid.length === 0) {
-    canvas.hidden = true;
-    emptyEl.hidden = false;
-    return;
-  }
-  canvas.hidden = false;
-  emptyEl.hidden = true;
-
-  const { ctx, w, h } = setupCanvas(canvas);
-  ctx.clearRect(0, 0, w, h);
-
-  const padTop = 8, padBottom = 16, padX = 6;
-  const values = valid.map(p => p.y);
-  let min = opts.min !== undefined ? opts.min : Math.min(...values);
-  let max = opts.max !== undefined ? opts.max : Math.max(...values);
-  if (min === max) { min -= 1; max += 1; }
-  const rangeY = max - min;
-
-  const plotW = w - padX * 2;
-  const plotH = h - padTop - padBottom;
-  const stepX = points.length > 1 ? plotW / (points.length - 1) : 0;
-
-  const coords = points.map((p, i) => {
-    if (p.y === null || p.y === undefined) return null;
-    const x = padX + stepX * i;
-    const y = padTop + plotH - ((p.y - min) / rangeY) * plotH;
-    return { x, y };
-  });
-
-  const accent = getAccentColor();
-
-  // simple connecting line between dots — no fill, no gridlines, kept deliberately minimal
-  ctx.beginPath();
-  let started = false;
-  coords.forEach((c) => {
-    if (!c) { started = false; return; }
-    if (!started) { ctx.moveTo(c.x, c.y); started = true; }
-    else ctx.lineTo(c.x, c.y);
-  });
-  ctx.strokeStyle = hexToRgba(accent, 0.55);
-  ctx.lineWidth = 1.5;
-  ctx.lineJoin = 'round';
-  ctx.lineCap = 'round';
-  ctx.stroke();
-
-  // a dot per data point — denser ranges get smaller dots so they don't clump into a smear
-  const dotRadius = points.length > 45 ? 1.6 : points.length > 20 ? 2 : 2.8;
-  coords.forEach((c) => {
-    if (!c) return;
-    ctx.beginPath();
-    ctx.arc(c.x, c.y, dotRadius, 0, Math.PI * 2);
-    ctx.fillStyle = accent;
-    ctx.fill();
-  });
-
-  // x labels (first / last)
-  ctx.fillStyle = 'rgba(255,255,255,0.35)';
-  ctx.font = '10px -apple-system, sans-serif';
-  ctx.textBaseline = 'top';
-  if (opts.labels && opts.labels.length) {
-    ctx.textAlign = 'left';
-    ctx.fillText(opts.labels[0], padX, h - padBottom + 4);
-    ctx.textAlign = 'right';
-    ctx.fillText(opts.labels[opts.labels.length - 1], w - padX, h - padBottom + 4);
-  }
-}
-
-function drawBarChart(canvasId, emptyId, points, opts = {}) {
-  const canvas = document.getElementById(canvasId);
-  const emptyEl = document.getElementById(emptyId);
-  const hasData = points.some(p => p.y);
-  if (!hasData) {
-    canvas.hidden = true;
-    emptyEl.hidden = false;
-    return;
-  }
-  canvas.hidden = false;
-  emptyEl.hidden = true;
-
-  const { ctx, w, h } = setupCanvas(canvas);
-  ctx.clearRect(0, 0, w, h);
-
-  const padTop = 8, padBottom = 16, padX = 8;
-  const max = Math.max(1, ...points.map(p => p.y || 0));
-  const plotW = w - padX * 2;
-  const plotH = h - padTop - padBottom;
-  const barGap = 6;
-  const barW = Math.max(4, (plotW / points.length) - barGap);
-  const accent = getAccentColor();
-
-  points.forEach((p, i) => {
-    const val = p.y || 0;
-    const barH = (val / max) * plotH;
-    const x = padX + i * (plotW / points.length) + ((plotW / points.length) - barW) / 2;
-    const y = padTop + plotH - barH;
-    ctx.fillStyle = val > 0 ? accent : 'rgba(255,255,255,0.08)';
-    roundRect(ctx, x, y, barW, Math.max(barH, 2), 4);
-    ctx.fill();
-  });
-
-  if (opts.labels && opts.labels.length) {
-    ctx.fillStyle = 'rgba(255,255,255,0.35)';
-    ctx.font = '10px -apple-system, sans-serif';
-    ctx.textBaseline = 'top';
-    ctx.textAlign = 'left';
-    ctx.fillText(opts.labels[0], padX, h - padBottom + 4);
-    ctx.textAlign = 'right';
-    ctx.fillText(opts.labels[opts.labels.length - 1], w - padX, h - padBottom + 4);
-  }
-}
-
-function roundRect(ctx, x, y, w, h, r) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.arcTo(x + w, y, x + w, y + h, r);
-  ctx.arcTo(x + w, y + h, x, y + h, r);
-  ctx.arcTo(x, y + h, x, y, r);
-  ctx.arcTo(x, y, x + w, y, r);
-  ctx.closePath();
-}
-
-function hexToRgba(hex, alpha) {
-  const h = hex.replace('#', '');
-  const bigint = parseInt(h.length === 3 ? h.split('').map(c => c + c).join('') : h, 16);
-  const r = (bigint >> 16) & 255, g = (bigint >> 8) & 255, b = bigint & 255;
-  return `rgba(${r},${g},${b},${alpha})`;
-}
-
-function shortLabel(ds) {
-  const d = parseDateStr(ds);
-  return `${pad2(d.getDate())}.${pad2(d.getMonth() + 1)}`;
-}
-
-function drawScoreChart(range) {
-  const points = range.map(ds => {
-    const day = getDayReadonly(ds);
-    const s = computeScore(day);
-    return { y: s.pct };
-  });
-  drawLineChart('chartScore', 'chartScoreEmpty', points, { min: 0, max: 100, labels: [shortLabel(range[0]), shortLabel(range[range.length - 1])] });
-}
-
-function drawWaterChart(range) {
-  const points = range.map(ds => {
-    const day = getDayReadonly(ds);
-    return { y: day && day.water > 0 ? roundTo(day.water / 1000, 2) : null };
-  });
-  drawLineChart('chartWater', 'chartWaterEmpty', points, { min: 0, labels: [shortLabel(range[0]), shortLabel(range[range.length - 1])] });
-}
-
-function drawWeightChart(range) {
-  const points = range.map(ds => {
-    const day = getDayReadonly(ds);
-    return { y: day && day.weight !== null ? day.weight : null };
-  });
-  drawLineChart('chartWeight', 'chartWeightEmpty', points, { labels: [shortLabel(range[0]), shortLabel(range[range.length - 1])] });
-}
-
-function drawWorkoutsChart(range) {
-  // group by week (chunks of 7, aligned to the range end)
-  const weeks = [];
-  for (let i = 0; i < range.length; i += 7) {
-    weeks.push(range.slice(i, i + 7));
-  }
-  const points = weeks.map(week => {
-    let count = 0;
-    for (const ds of week) {
-      const day = getDayReadonly(ds);
-      if (day && day.tasks.some(t => t.category === 'trening' && t.done)) count++;
-    }
-    return { y: count };
-  });
-  drawBarChart('chartWorkouts', 'chartWorkoutsEmpty', points, { labels: weeks.length > 1 ? [shortLabel(weeks[0][0]), shortLabel(weeks[weeks.length - 1][weeks[weeks.length - 1].length - 1])] : [] });
-}
-
-/* ============================================================
-   RENDER: SETTINGS
-   ============================================================ */
-
-function renderSettings() {
-  const s = STATE.settings;
-  document.getElementById('setWaterGoal').value = s.waterGoal;
-  document.getElementById('setCalGoal').value = s.calGoal;
-  document.getElementById('setProteinGoal').value = s.proteinGoal;
-  document.getElementById('setStreakThreshold').value = s.streakThreshold;
-  document.getElementById('setUnits').value = s.units;
-  document.getElementById('setAccent').value = s.accent;
-
-  renderTemplateSettingsList();
-}
-
-function renderTemplateSettingsList() {
-  const list = document.getElementById('templateSettingsList');
-  list.innerHTML = '';
-  for (const tpl of STATE.templates) {
-    const row = document.createElement('li');
-    row.className = 'template-row';
-    row.innerHTML = `
-      <div>
-        <div class="template-row-name">${escapeHtml(tpl.name)}</div>
-        <div class="template-row-count">${tpl.tasks.length} zadań</div>
-      </div>
-      <button class="template-row-del" data-id="${tpl.id}" aria-label="Usuń szablon">✕</button>
-    `;
-    list.appendChild(row);
-  }
-}
-
-document.getElementById('templateSettingsList').addEventListener('click', (e) => {
-  const btn = e.target.closest('.template-row-del');
-  if (!btn) return;
-  STATE.templates = STATE.templates.filter(t => t.id !== btn.dataset.id);
-  saveState();
-  renderTemplateSettingsList();
-  toast('Szablon usunięty');
-});
-
-function bindSetting(id, key, transform) {
-  document.getElementById(id).addEventListener('change', (e) => {
-    let val = e.target.value;
-    if (transform) val = transform(val);
-    STATE.settings[key] = val;
-    saveState();
-    if (key === 'accent') applyAccent();
-    renderToday();
-  });
-}
-
-bindSetting('setWaterGoal', 'waterGoal', v => clamp(Number(v) || 0.1, 0.1, 20));
-bindSetting('setCalGoal', 'calGoal', v => clamp(Math.round(Number(v)) || 0, 0, 15000));
-bindSetting('setProteinGoal', 'proteinGoal', v => clamp(Math.round(Number(v)) || 0, 0, 1000));
-bindSetting('setStreakThreshold', 'streakThreshold', v => clamp(Math.round(Number(v)) || 60, 1, 100));
-bindSetting('setUnits', 'units');
-bindSetting('setAccent', 'accent');
-
-function applyAccent() {
-  document.documentElement.setAttribute('data-accent', STATE.settings.accent);
-}
-
-/* -------- new template -------- */
-
-document.getElementById('addTemplateBtn').addEventListener('click', () => {
-  document.getElementById('newTemplateName').value = '';
-  openModal(document.getElementById('newTemplateModal'));
-});
-document.getElementById('newTemplateCancelBtn').addEventListener('click', closeModals);
-
-document.getElementById('newTemplateSaveBtn').addEventListener('click', () => {
-  const name = document.getElementById('newTemplateName').value.trim();
-  if (!name) { toast('Podaj nazwę szablonu'); return; }
-  const day = ensureDay(currentDate);
-  if (day.tasks.length === 0) { toast('Bieżący dzień nie ma zadań'); return; }
-  const tasks = day.tasks.map(t => ({ name: t.name, category: t.category || null }));
-  STATE.templates.push({ id: uid(), name, tasks });
-  saveState();
-  closeModals();
-  renderTemplateSettingsList();
-  toast('Szablon zapisany');
-});
-
-/* -------- export / import / reset -------- */
-
-document.getElementById('checkUpdateBtn').addEventListener('click', async () => {
-  if (!('serviceWorker' in navigator)) {
-    toast('Tryb offline niedostępny w tej przeglądarce');
-    return;
-  }
-  toast('Sprawdzanie aktualizacji…');
-  try {
-    const reg = await navigator.serviceWorker.getRegistration();
-    if (!reg) {
-      toast('Brak zarejestrowanej wersji offline');
-      return;
-    }
-    await reg.update();
-    setTimeout(() => {
-      if (reg.waiting) {
-        // a new version finished installing and is ready — activate it now instead of
-        // waiting for the browser's own timing. app.js's controllerchange listener
-        // reloads the page automatically once it takes over.
-        reg.waiting.postMessage('SKIP_WAITING');
-        toast('Aktualizowanie…');
-      } else if (reg.installing) {
-        toast('Instalowanie aktualizacji…');
-      } else {
-        toast('Masz już najnowszą wersję');
-      }
-    }, 1200);
-  } catch (e) {
-    toast('Nie udało się sprawdzić aktualizacji');
-  }
-});
-
-document.getElementById('exportBtn').addEventListener('click', () => {
-  const blob = new Blob([JSON.stringify(STATE, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `prime-export-${todayStr()}.json`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  toast('Dane wyeksportowane');
-});
-
-document.getElementById('importBtn').addEventListener('click', () => {
-  document.getElementById('importFile').click();
-});
-
-document.getElementById('importFile').addEventListener('change', (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = () => {
-    try {
-      const parsed = JSON.parse(reader.result);
-      if (!parsed || typeof parsed !== 'object' || !parsed.days) {
-        throw new Error('invalid structure');
-      }
-      STATE = mergeLoadedState(parsed);
-      saveState();
-      applyAccent();
-      switchView(currentView);
-      toast('Dane zaimportowane');
-    } catch (err) {
-      console.error(err);
-      toast('Nieprawidłowy plik danych');
-    }
-    e.target.value = '';
+    const sc = document.querySelector(`#view-${name} .scroll-area`);
+    if (sc) sc.scrollTop = 0;
+    renderCurrent();
   };
-  reader.readAsText(file);
-});
 
-let confirmCallback = null;
-function openConfirm(title, text, onConfirm) {
-  document.getElementById('confirmTitle').textContent = title;
-  document.getElementById('confirmText').textContent = text;
-  confirmCallback = onConfirm;
-  openModal(document.getElementById('confirmModal'));
-}
-document.getElementById('confirmCancelBtn').addEventListener('click', closeModals);
-document.getElementById('confirmOkBtn').addEventListener('click', () => {
-  if (confirmCallback) confirmCallback();
-  closeModals();
-});
+  /* ---------------- appearance ---------------- */
 
-document.getElementById('resetBtn').addEventListener('click', () => {
-  openConfirm(
-    'Zresetować wszystkie dane?',
-    'Ta operacja usunie wszystkie zadania, cele, szablony i historię z tego urządzenia. Nie można jej cofnąć.',
-    () => {
-      STATE = defaultState();
-      saveState();
-      applyAccent();
-      currentDate = todayStr();
-      switchView('today');
-      toast('Dane zresetowane');
-    }
-  );
-});
+  function applyAppearance() {
+    document.documentElement.dataset.accent = Prime.state.settings.accent || 'lime';
+  }
 
-/* ============================================================
-   BOTTOM NAV
-   ============================================================ */
+  /* ---------------- midnight rollover ---------------- */
 
-document.querySelectorAll('.nav-btn').forEach(btn => {
-  btn.addEventListener('click', () => switchView(btn.dataset.target));
-});
+  let lastToday = Prime.today();
+  function isEditing() {
+    const a = document.activeElement;
+    return !!a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName);
+  }
+  function checkDayChange() {
+    const t = Prime.today();
+    if (t === lastToday) return;
+    if (isEditing()) return; // retried on the next tick; never re-render while typing
+    const followed = Prime.date === lastToday;
+    lastToday = t;
+    if (followed) Prime.date = t;
+    renderCurrent();
+  }
 
-/* ============================================================
-   INIT
-   ============================================================ */
+  /* ---------------- service worker ---------------- */
 
-function init() {
-  STATE = loadState();
-  applyAccent();
-  currentDate = todayStr();
-  switchView('today');
+  let swReg = null, userRequestedUpdate = false;
 
-  window.addEventListener('resize', () => {
-    if (currentView === 'stats') renderStats();
-  });
+  function showUpdateBanner(worker) {
+    const el = $('updateBanner'); ui.clear(el);
+    el.appendChild(h('span', { text: 'Dostępna jest nowa wersja aplikacji.' }));
+    el.appendChild(h('div.banner-actions', null,
+      btn('Aktualizuj', () => {
+        Prime.flush();
+        if (isEditing() && !confirmLeave()) return;
+        userRequestedUpdate = true;
+        if (worker) worker.postMessage({ type: 'SKIP_WAITING' });
+      }, 'primary'),
+      btn('Później', () => { el.hidden = true; })));
+    el.hidden = false;
+  }
+  function confirmLeave() { return true; } // data is saved on every change/blur; Prime.flush() above saves pending edits
 
-  if ('serviceWorker' in navigator) {
-    // Recorded before registering: distinguishes a genuine update (page already had a
-    // controller, now a different one takes over) from the very first install (no
-    // controller yet -> one appears). `clients.claim()` in sw.js fires 'controllerchange'
-    // in both cases, but only the former should trigger a reload — reloading on first-ever
-    // load would just be a wasted extra load with nothing new to show for it.
-    const hadControllerAlready = !!navigator.serviceWorker.controller;
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js').catch(() => { /* offline install not available on this origin */ });
-    });
-    // When a new service worker takes control (a fresh deploy finished installing in the
-    // background), reload once automatically so the person always ends up on the current
-    // files without having to manually clear anything. The `refreshed` guard stops a loop
-    // in case this fires more than once.
-    let refreshed = false;
+  function setupSW() {
+    if (!('serviceWorker' in navigator)) return;
+    navigator.serviceWorker.register('sw.js').then((reg) => {
+      swReg = reg;
+      if (reg.waiting && navigator.serviceWorker.controller) showUpdateBanner(reg.waiting);
+      reg.addEventListener('updatefound', () => {
+        const nw = reg.installing; if (!nw) return;
+        nw.addEventListener('statechange', () => {
+          if (nw.state === 'installed' && navigator.serviceWorker.controller) showUpdateBanner(nw);
+        });
+      });
+    }).catch((e) => { console.warn('SW registration failed', e); });
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (refreshed || !hadControllerAlready) return;
-      refreshed = true;
-      window.location.reload();
+      // Only reload when the user asked for the update — never while they are typing unprompted.
+      if (userRequestedUpdate) { userRequestedUpdate = false; window.location.reload(); }
     });
   }
-}
 
-document.addEventListener('DOMContentLoaded', init);
+  Prime.checkUpdate = function (manual) {
+    if (!swReg) { if (manual) ui.toast('Aktualizacje są niedostępne (brak service workera)'); return; }
+    swReg.update().then(() => {
+      if (swReg.waiting) showUpdateBanner(swReg.waiting);
+      else if (manual) ui.toast('Masz najnowszą wersję (sprawdzone na serwerze)');
+    }).catch(() => { if (manual) ui.toast('Nie udało się sprawdzić — brak połączenia?'); });
+  };
+
+  /* ---------------- start ---------------- */
+
+  function hideBoot() {
+    const b = $('boot');
+    b.classList.add('done'); b.hidden = true;
+  }
+
+  function boot2() {
+    applyAppearance();
+    lastToday = Prime.today();
+  }
+
+  function start() {
+    Prime.initState();
+    boot2();
+    ['today', 'goals', 'stats', 'settings'].forEach(k => Prime.mods[k].bind());
+    document.querySelectorAll('.nav-btn').forEach(b => b.addEventListener('click', () => Prime.showView(b.dataset.target)));
+    updateStorageBanner();
+    Prime.showView('today');
+    hideBoot();
+
+    const st = Prime.startup;
+    if (st.status === 'migrated') ui.toast('Dane zaktualizowane do nowej wersji. Kopia sprzed zmian zapisana w tej przeglądarce.', 6000);
+    else if (st.status === 'recovered') ui.toast('Dane połączono po powrocie ze starszej wersji. Kopia zapisana.', 6000);
+
+    setInterval(checkDayChange, 30000);
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkDayChange(); });
+    window.addEventListener('focus', checkDayChange);
+    window.addEventListener('resize', () => { if (Prime.view === 'stats' && !isEditing()) Prime.mods.stats.render(); });
+
+    setupSW();
+  }
+
+  try { start(); } catch (e) {
+    console.error(e);
+    window.__primeBootFailed = true;
+    const msg = $('bootMsg');
+    if (msg) msg.textContent = 'Nie udało się uruchomić aplikacji: ' + (e.message || e) + '. Twoje dane nie zostały zmienione.';
+    const sp = document.querySelector('#boot .boot-spinner'); if (sp) sp.style.display = 'none';
+  }
+})();

@@ -2,15 +2,16 @@
 <html lang="pl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
-<title>Prime</title>
-<meta name="description" content="Prime — osobisty planer dnia i tracker progresu">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Prime Life Maxing</title>
+<meta name="description" content="Prime Life Maxing — osobisty system organizacji życia, treningu, diety, nawyków i finansów">
 
 <!-- PWA / iOS -->
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Prime">
-<meta name="theme-color" content="#0B0D10">
+<meta name="theme-color" content="#0b0d0f">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <link rel="icon" href="assets/icon-192.png">
@@ -19,25 +20,115 @@
 </head>
 <body>
 
+<!-- Icon sprite (inline: no external requests) -->
+<svg xmlns="http://www.w3.org/2000/svg" style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 11.5 12 4l8 7.5V20a1 1 0 0 1-1 1h-4.5v-6h-5v6H5a1 1 0 0 1-1-1z"/></symbol>
+    <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><path d="M5 20v-8M12 20V5M19 20v-5"/></symbol>
+    <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></symbol>
+    <symbol id="i-dumbbell" viewBox="0 0 24 24"><path d="M7 7v10M17 7v10M4 9.5v5M20 9.5v5M7 12h10"/></symbol>
+    <symbol id="i-briefcase" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7M3 13h18"/></symbol>
+    <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M9.5 18h5M10.5 21h3M12 3a6 6 0 0 0-3.6 10.8c.9.7 1.1 1.4 1.1 2.2h5c0-.8.2-1.5 1.1-2.2A6 6 0 0 0 12 3z"/></symbol>
+    <symbol id="i-leaf" viewBox="0 0 24 24"><path d="M5 20C5 11 10 5 20 4c0 10-5 16-13 16M5 20c1.5-4 4-7 8-9"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.8"/><path d="M4.5 20.5c0-3.8 3.4-6 7.5-6s7.5 2.2 7.5 6"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s7-6 7-11.5a7 7 0 1 0-14 0C5 15 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+    <symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="m14.5 6-6 6 6 6"/></symbol>
+    <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="m9.5 6 6 6-6 6"/></symbol>
+    <symbol id="i-chevron-down" viewBox="0 0 24 24"><path d="m6 9.5 6 6 6-6"/></symbol>
+    <symbol id="i-chevron-up" viewBox="0 0 24 24"><path d="m6 14.5 6-6 6 6"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 3.5 2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 16.9l-5.2 2.8 1-5.9-4.3-4.1 5.9-.8z"/></symbol>
+    <symbol id="i-star-fill" viewBox="0 0 24 24"><path fill="currentColor" d="m12 3.5 2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 16.9l-5.2 2.8 1-5.9-4.3-4.1 5.9-.8z"/></symbol>
+    <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.5" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-drop" viewBox="0 0 24 24"><path d="M12 3.5s6 6.3 6 11a6 6 0 0 1-12 0c0-4.7 6-11 6-11z"/></symbol>
+    <symbol id="i-flame" viewBox="0 0 24 24"><path d="M12 3c.5 3.5 5 5.5 5 10.5a5 5 0 0 1-10 0c0-2.2 1-3.4 2.2-4.5.2 1.8 1 2.8 2 3C10.5 8.5 11 5.5 12 3z"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6 7 7M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4"/></symbol>
+    <symbol id="i-scale" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3.5"/><path d="M8.5 10a5 4 0 0 1 7 0M12 10l1.8-2.2"/></symbol>
+    <symbol id="i-steps" viewBox="0 0 24 24"><path d="M8.5 4c2 0 3 2 3 4.2S10.5 12 8.5 12 5.5 10.2 5.5 8 6.5 4 8.5 4zM15.5 12c2 0 3 2 3 4.2s-1 3.8-3 3.8-3-1.8-3-3.8 1-4.2 3-4.2z"/></symbol>
+    <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 3 5 13.5h6L10 21l8-10.5h-6z"/></symbol>
+    <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="4" y="5.5" width="16" height="14.5" rx="2"/><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24"><path d="m5 19 .8-3.8L16.5 4.5a2 2 0 0 1 2.8 2.8L8.6 18.1z"/><path d="m14.5 6.5 3 3"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4.5 7h15M9.5 7V4.5h5V7M6.5 7l.8 12.5h9.4L17.5 7M10 11v5M14 11v5"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8.5" y="8.5" width="11" height="11" rx="2"/><path d="M15.5 8.5V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7.5a2 2 0 0 0 2 2h2.5"/></symbol>
+    <symbol id="i-archive" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="4" rx="1"/><path d="M5 8.5V19a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8.5M10 12.5h4"/></symbol>
+    <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2l1.3-2h6.4l1.3 2h2A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5z"/><circle cx="12" cy="13" r="3.5"/></symbol>
+    <symbol id="i-image" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="m4 17.5 5-4.5 3.5 3 3-2.5 4.5 4"/></symbol>
+    <symbol id="i-wallet" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="14" rx="2.5"/><path d="M3 10h18M16 15h2"/></symbol>
+    <symbol id="i-coin" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M14.5 9.2c-.5-.7-1.4-1.2-2.5-1.2-1.4 0-2.5.8-2.5 1.9 0 2.6 5 1.4 5 4 0 1.1-1.1 1.9-2.5 1.9-1.1 0-2.1-.5-2.6-1.3M12 6.5V8M12 16v1.5"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M5 4.5h10.5A2.5 2.5 0 0 1 18 7v13H7.5A2.5 2.5 0 0 1 5 17.5z"/><path d="M5 17.5A2.5 2.5 0 0 1 7.5 15H18"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8.5" r="3.3"/><path d="M2.8 20c0-3.3 2.8-5.2 6.2-5.2s6.2 1.9 6.2 5.2M16 5.5a3 3 0 0 1 0 6M18.5 15.2c1.7.7 2.7 2.2 2.7 4.3"/></symbol>
+    <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M7.5 4h9v5a4.5 4.5 0 0 1-9 0zM7.5 6H4.5v1.5a3 3 0 0 0 3 3M16.5 6h3v1.5a3 3 0 0 1-3 3M12 13.5V17M8.5 20h7M9.5 20v-3h5v3"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11M7.5 11 12 15.5 16.5 11M5 19.5h14"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 15.5V4.5M7.5 9 12 4.5 16.5 9M5 19.5h14"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3M19.5 4.5v4h-4"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+    <symbol id="i-arrow-up" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></symbol>
+    <symbol id="i-arrow-down" viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z"/></symbol>
+    <symbol id="i-utensils" viewBox="0 0 24 24"><path d="M7 3.5v7M4.5 3.5v5a2.5 2.5 0 0 0 5 0v-5M7 11v9.5M17 20.5V3.5c-2.3 1.2-3.5 3.8-3.5 7.5H17"/></symbol>
+    <symbol id="i-sparkle" viewBox="0 0 24 24"><path d="m12 3.5 1.9 5.4 5.6 2.1-5.6 2.1-1.9 5.4-1.9-5.4L4.5 11l5.6-2.1z"/></symbol>
+    <symbol id="i-trend" viewBox="0 0 24 24"><path d="m3.5 17 6-6 4 4 7-7.5M15 7.5h5.5V13"/></symbol>
+    <symbol id="i-repeat" viewBox="0 0 24 24"><path d="M17 3.5l3 3-3 3M4 11V9.5a3 3 0 0 1 3-3h13M7 20.5l-3-3 3-3M20 13v1.5a3 3 0 0 1-3 3H4"/></symbol>
+    <symbol id="i-note" viewBox="0 0 24 24"><path d="M6.5 3.5h8l4.5 4.5v11a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 19V5a1.5 1.5 0 0 1 1.5-1.5z"/><path d="M14.5 3.5V8H19M8.5 12.5h7M8.5 16h5"/></symbol>
+    <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 20s-7.5-4.6-7.5-10A4.3 4.3 0 0 1 12 7.2 4.3 4.3 0 0 1 19.5 10c0 5.4-7.5 10-7.5 10z"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6.5h11M9 12h11M9 17.5h11M4.5 6.5h.01M4.5 12h.01M4.5 17.5h.01"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="9.5" rx="2"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5M12 8h.01"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 4 3 19.5h18z"/><path d="M12 10v4.5M12 17.2h.01"/></symbol>
+    <symbol id="i-flag" viewBox="0 0 24 24"><path d="M6 21V4M6 5h11l-2 4 2 4H6"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3.5 5 6v5.5c0 4.2 3 7.4 7 9 4-1.6 7-4.8 7-9V6z"/><path d="m9 12 2.2 2.2L15 10"/></symbol>
+    <symbol id="i-bed" viewBox="0 0 24 24"><path d="M3.5 18.5V6M3.5 14h17v4.5M20.5 14v-2a3 3 0 0 0-3-3H11v5"/><circle cx="7" cy="10.5" r="1.6"/></symbol>
+  </defs>
+</svg>
+
+<div id="boot" class="boot" role="status" aria-live="polite">
+  <div class="boot-inner">
+    <div class="boot-spinner" aria-hidden="true"></div>
+    <div id="bootMsg">Ładowanie…</div>
+  </div>
+</div>
+
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-<div class="app">
+<div class="app" id="app">
+
+  <div id="storageBanner" class="banner" role="alert" hidden></div>
+  <div id="updateBanner" class="banner info" hidden></div>
 
   <!-- ============ VIEW: DZISIAJ ============ -->
   <section class="view" id="view-today" data-view="today">
     <header class="view-header">
       <div class="date-nav">
-        <button class="icon-btn" id="prevDay" aria-label="Poprzedni dzień">‹</button>
-        <button class="date-display" id="dateDisplay">
+        <button class="icon-btn" id="prevDay" aria-label="Poprzedni dzień"><svg class="icon" aria-hidden="true"><use href="#i-chevron-left"/></svg></button>
+        <button class="date-display" id="dateDisplay" aria-label="Wybierz datę">
           <span class="date-weekday" id="dateWeekday">Poniedziałek</span>
-          <span class="date-full" id="dateFull">10 sierpnia 2026</span>
+          <span class="date-full" id="dateFull">26 października 2026</span>
         </button>
-        <button class="icon-btn" id="nextDay" aria-label="Następny dzień">›</button>
+        <button class="icon-btn" id="nextDay" aria-label="Następny dzień"><svg class="icon" aria-hidden="true"><use href="#i-chevron-right"/></svg></button>
       </div>
+      <button class="icon-btn accent" id="quickAddBtn" aria-label="Szybkie dodawanie"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg></button>
       <input type="date" id="datePicker" class="date-picker-input" aria-label="Wybierz datę">
     </header>
 
     <div class="scroll-area">
+
+      <!-- Hero: greeting + challenge dashboard -->
+      <div class="card hero" id="heroCard">
+        <div class="hero-top">
+          <div>
+            <div class="hero-greeting" id="heroGreeting"></div>
+            <div class="hero-sub" id="heroSub"></div>
+          </div>
+          <div class="hero-days" id="heroDays"></div>
+        </div>
+        <div id="heroChallenge"></div>
+        <div class="hero-chips" id="heroChips"></div>
+      </div>
 
       <!-- Daily score -->
       <div class="card score-card">
@@ -52,9 +143,22 @@
           <div class="progress-fill" id="scoreBar" style="width:0%"></div>
         </div>
         <div class="streak-row" id="streakRow">
-          <span class="streak-flame">🔥</span>
+          <svg class="icon streak-flame" aria-hidden="true"><use href="#i-flame"/></svg>
           <span id="streakText">0 dni</span>
+          <span class="streak-rest" id="restBadge" hidden>dzień wolny</span>
+          <span class="xp-mini" id="xpMini"></span>
         </div>
+      </div>
+
+      <!-- Big 3 -->
+      <div class="section-head">
+        <h2>Big 3</h2>
+        <span class="section-hint" id="big3Hint"></span>
+      </div>
+      <ul class="task-list" id="big3List"></ul>
+      <div class="empty-state small" id="big3Empty" hidden>
+        <p>Wybierz do 3 najważniejszych zadań dnia.</p>
+        <p class="empty-sub">Oznacz zadanie gwiazdką na liście poniżej.</p>
       </div>
 
       <!-- Task list -->
@@ -67,87 +171,126 @@
         <p>Brak zadań na ten dzień.</p>
         <p class="empty-sub">Dodaj pierwsze zadanie albo zastosuj szablon.</p>
       </div>
+      <button class="add-btn" id="addTaskBtn"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg> Dodaj zadanie</button>
 
-      <button class="add-btn" id="addTaskBtn">+ Dodaj</button>
+      <!-- Life Maxing sections (collapsible) -->
+      <div class="section-head"><h2>Life Maxing</h2></div>
+      <div class="life-sections" id="lifeSections">
 
-      <!-- Trackers -->
-      <div class="section-head">
-        <h2>Trackery</h2>
-      </div>
+        <section class="collapsible" data-sec="body">
+          <button class="collapsible-head" type="button" aria-expanded="false" aria-controls="secBodyBody">
+            <svg class="icon sec-icon" aria-hidden="true"><use href="#i-dumbbell"/></svg>
+            <span class="cl-title">Ciało</span><span class="cl-sum" id="sumBody"></span>
+            <svg class="icon cl-chev" aria-hidden="true"><use href="#i-chevron-down"/></svg>
+          </button>
+          <div class="collapsible-body" id="secBodyBody" hidden>
+            <div id="workoutMount"></div>
+            <div class="tracker-grid">
+              <div class="card tracker-card">
+                <div class="tracker-top"><svg class="icon tracker-icon" aria-hidden="true"><use href="#i-scale"/></svg><span class="tracker-name">Masa</span></div>
+                <div class="tracker-value"><span id="weightVal">—</span> kg</div>
+                <div class="tracker-actions">
+                  <input type="number" step="0.1" class="tracker-input" id="weightInput" placeholder="np. 78.5" inputmode="decimal" aria-label="Masa ciała w kg">
+                </div>
+              </div>
+              <div class="card tracker-card">
+                <div class="tracker-top"><svg class="icon tracker-icon" aria-hidden="true"><use href="#i-steps"/></svg><span class="tracker-name">Kroki</span></div>
+                <div class="tracker-value"><span id="stepsVal">—</span></div>
+                <div class="tracker-actions">
+                  <input type="number" class="tracker-input" id="stepsInput" placeholder="np. 8000" inputmode="numeric" aria-label="Liczba kroków">
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
 
-      <div class="tracker-grid">
-        <div class="card tracker-card">
-          <div class="tracker-top">
-            <span class="tracker-icon">💧</span>
-            <span class="tracker-name">Woda</span>
+        <section class="collapsible" data-sec="diet">
+          <button class="collapsible-head" type="button" aria-expanded="false" aria-controls="secDietBody">
+            <svg class="icon sec-icon" aria-hidden="true"><use href="#i-utensils"/></svg>
+            <span class="cl-title">Dieta</span><span class="cl-sum" id="sumDiet"></span>
+            <svg class="icon cl-chev" aria-hidden="true"><use href="#i-chevron-down"/></svg>
+          </button>
+          <div class="collapsible-body" id="secDietBody" hidden>
+            <div class="tracker-grid">
+              <div class="card tracker-card">
+                <div class="tracker-top"><svg class="icon tracker-icon" aria-hidden="true"><use href="#i-drop"/></svg><span class="tracker-name">Woda</span></div>
+                <div class="tracker-value"><span id="waterVal">0</span> / <span id="waterGoalDisp">3.0</span> L</div>
+                <div class="progress-track thin"><div class="progress-fill" id="waterBar" style="width:0%"></div></div>
+                <div class="tracker-actions">
+                  <button class="chip-btn" data-water="250">+250 ml</button>
+                  <button class="chip-btn" data-water="500">+500 ml</button>
+                  <button class="chip-btn ghost" data-water="-250">−250 ml</button>
+                </div>
+              </div>
+              <div class="card tracker-card">
+                <div class="tracker-top"><svg class="icon tracker-icon" aria-hidden="true"><use href="#i-bolt"/></svg><span class="tracker-name">Białko</span></div>
+                <div class="tracker-value"><span id="proteinVal">0</span> / <span id="proteinGoalDisp">0</span> g</div>
+                <div class="progress-track thin"><div class="progress-fill" id="proteinBar" style="width:0%"></div></div>
+                <div class="tracker-actions" id="proteinActions">
+                  <button class="chip-btn" data-protein="10">+10 g</button>
+                  <button class="chip-btn" data-protein="25">+25 g</button>
+                  <input type="number" class="tracker-input" id="proteinInput" placeholder="ustaw…" inputmode="numeric" aria-label="Ustaw białko w gramach">
+                </div>
+              </div>
+              <div class="card tracker-card">
+                <div class="tracker-top"><svg class="icon tracker-icon" aria-hidden="true"><use href="#i-flame"/></svg><span class="tracker-name">Kalorie</span></div>
+                <div class="tracker-value"><span id="calVal">0</span> / <span id="calGoalDisp">0</span> kcal</div>
+                <div class="progress-track thin"><div class="progress-fill" id="calBar" style="width:0%"></div></div>
+                <div class="tracker-actions" id="calActions">
+                  <input type="number" class="tracker-input" id="calInput" placeholder="ustaw…" inputmode="numeric" aria-label="Ustaw kalorie">
+                </div>
+              </div>
+            </div>
+            <div id="mealsMount"></div>
           </div>
-          <div class="tracker-value"><span id="waterVal">0</span> / <span id="waterGoalDisp">3.0</span> L</div>
-          <div class="progress-track thin"><div class="progress-fill" id="waterBar" style="width:0%"></div></div>
-          <div class="tracker-actions">
-            <button class="chip-btn" data-water="250">+250 ml</button>
-            <button class="chip-btn" data-water="500">+500 ml</button>
-            <button class="chip-btn ghost" data-water="-250">−250 ml</button>
-          </div>
-        </div>
+        </section>
 
-        <div class="card tracker-card">
-          <div class="tracker-top">
-            <span class="tracker-icon">🥩</span>
-            <span class="tracker-name">Białko</span>
+        <section class="collapsible" data-sec="sleep">
+          <button class="collapsible-head" type="button" aria-expanded="false" aria-controls="secSleepBody">
+            <svg class="icon sec-icon" aria-hidden="true"><use href="#i-moon"/></svg>
+            <span class="cl-title">Sen i regeneracja</span><span class="cl-sum" id="sumSleep"></span>
+            <svg class="icon cl-chev" aria-hidden="true"><use href="#i-chevron-down"/></svg>
+          </button>
+          <div class="collapsible-body" id="secSleepBody" hidden>
+            <div class="card tracker-card wide">
+              <div class="tracker-top"><svg class="icon tracker-icon" aria-hidden="true"><use href="#i-moon"/></svg><span class="tracker-name">Sen</span></div>
+              <div class="tracker-value"><span id="sleepVal">—</span> godz.</div>
+              <div class="tracker-actions">
+                <input type="number" step="0.1" class="tracker-input" id="sleepInput" placeholder="np. 7.5" inputmode="decimal" aria-label="Sen w godzinach">
+              </div>
+              <div id="sleepMount"></div>
+            </div>
           </div>
-          <div class="tracker-value"><span id="proteinVal">0</span> / <span id="proteinGoalDisp">0</span> g</div>
-          <div class="progress-track thin"><div class="progress-fill" id="proteinBar" style="width:0%"></div></div>
-          <div class="tracker-actions">
-            <button class="chip-btn" data-protein="10">+10 g</button>
-            <button class="chip-btn" data-protein="25">+25 g</button>
-            <input type="number" class="tracker-input" id="proteinInput" placeholder="ustaw…" inputmode="numeric">
-          </div>
-        </div>
+        </section>
 
-        <div class="card tracker-card">
-          <div class="tracker-top">
-            <span class="tracker-icon">🔥</span>
-            <span class="tracker-name">Kalorie</span>
-          </div>
-          <div class="tracker-value"><span id="calVal">0</span> / <span id="calGoalDisp">0</span> kcal</div>
-          <div class="progress-track thin"><div class="progress-fill" id="calBar" style="width:0%"></div></div>
-          <div class="tracker-actions">
-            <input type="number" class="tracker-input" id="calInput" placeholder="ustaw…" inputmode="numeric">
-          </div>
-        </div>
+        <section class="collapsible" data-sec="care" data-mod="care">
+          <button class="collapsible-head" type="button" aria-expanded="false" aria-controls="secCareBody">
+            <svg class="icon sec-icon" aria-hidden="true"><use href="#i-sparkle"/></svg>
+            <span class="cl-title">Pielęgnacja</span><span class="cl-sum" id="sumCare"></span>
+            <svg class="icon cl-chev" aria-hidden="true"><use href="#i-chevron-down"/></svg>
+          </button>
+          <div class="collapsible-body" id="secCareBody" hidden><div id="careMount"></div></div>
+        </section>
 
-        <div class="card tracker-card">
-          <div class="tracker-top">
-            <span class="tracker-icon">😴</span>
-            <span class="tracker-name">Sen</span>
-          </div>
-          <div class="tracker-value"><span id="sleepVal">—</span> godz.</div>
-          <div class="tracker-actions">
-            <input type="number" step="0.1" class="tracker-input" id="sleepInput" placeholder="np. 7.5" inputmode="decimal">
-          </div>
-        </div>
+        <section class="collapsible" data-sec="habits" data-mod="habits">
+          <button class="collapsible-head" type="button" aria-expanded="false" aria-controls="secHabitsBody">
+            <svg class="icon sec-icon" aria-hidden="true"><use href="#i-repeat"/></svg>
+            <span class="cl-title">Dyscyplina</span><span class="cl-sum" id="sumHabits"></span>
+            <svg class="icon cl-chev" aria-hidden="true"><use href="#i-chevron-down"/></svg>
+          </button>
+          <div class="collapsible-body" id="secHabitsBody" hidden><div id="habitsMount"></div></div>
+        </section>
 
-        <div class="card tracker-card">
-          <div class="tracker-top">
-            <span class="tracker-icon">⚖️</span>
-            <span class="tracker-name">Masa</span>
-          </div>
-          <div class="tracker-value"><span id="weightVal">—</span> kg</div>
-          <div class="tracker-actions">
-            <input type="number" step="0.1" class="tracker-input" id="weightInput" placeholder="np. 78.5" inputmode="decimal">
-          </div>
-        </div>
+        <section class="collapsible" data-sec="growth" data-mod="growth">
+          <button class="collapsible-head" type="button" aria-expanded="false" aria-controls="secGrowthBody">
+            <svg class="icon sec-icon" aria-hidden="true"><use href="#i-bulb"/></svg>
+            <span class="cl-title">Rozwój</span><span class="cl-sum" id="sumGrowth"></span>
+            <svg class="icon cl-chev" aria-hidden="true"><use href="#i-chevron-down"/></svg>
+          </button>
+          <div class="collapsible-body" id="secGrowthBody" hidden><div id="growthMount"></div></div>
+        </section>
 
-        <div class="card tracker-card">
-          <div class="tracker-top">
-            <span class="tracker-icon">🚶</span>
-            <span class="tracker-name">Kroki</span>
-          </div>
-          <div class="tracker-value"><span id="stepsVal">—</span></div>
-          <div class="tracker-actions">
-            <input type="number" class="tracker-input" id="stepsInput" placeholder="np. 8000" inputmode="numeric">
-          </div>
-        </div>
+        <div class="module-links" id="moduleLinks"></div>
       </div>
 
       <button class="summary-btn" id="openSummaryBtn">Podsumowanie dnia</button>
@@ -161,12 +304,23 @@
       <h1>Cele</h1>
     </header>
     <div class="scroll-area">
+      <div class="toolbar" id="goalsToolbar">
+        <div class="chip-row scroll-x" id="goalFilter" role="group" aria-label="Filtr kategorii"></div>
+        <label class="sort-label">Sortuj
+          <select id="goalSort" class="settings-input compact" aria-label="Sortowanie celów">
+            <option value="deadline">Termin</option>
+            <option value="progress">Postęp</option>
+            <option value="name">Nazwa</option>
+            <option value="created">Kolejność dodania</option>
+          </select>
+        </label>
+      </div>
       <ul class="goal-list" id="goalList"></ul>
       <div class="empty-state" id="goalsEmpty" hidden>
         <p>Brak celów.</p>
         <p class="empty-sub">Dodaj swój pierwszy cel — może to być kwota, waga, godziny nauki, cokolwiek.</p>
       </div>
-      <button class="add-btn" id="addGoalBtn">+ Dodaj cel</button>
+      <button class="add-btn" id="addGoalBtn"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg> Dodaj cel</button>
       <div class="bottom-spacer"></div>
     </div>
   </section>
@@ -182,46 +336,54 @@
       </div>
     </header>
     <div class="scroll-area">
-      <div class="stat-summary-grid" id="statSummaryGrid"></div>
+      <div class="chip-row scroll-x" id="statsNav" role="tablist" aria-label="Sekcje statystyk"></div>
+      <div class="period-line" id="statsPeriod"></div>
 
-      <div class="section-head"><h2>Rekordy</h2></div>
-      <div class="stat-summary-grid" id="recordsGrid"></div>
+      <div id="statsOverview" class="stats-pane">
+        <div class="stat-summary-grid" id="statSummaryGrid"></div>
 
-      <div class="chart-grid">
-        <div class="card chart-card" data-metric="score" role="button" tabindex="0">
-          <div class="chart-title">Daily Score</div>
-          <div class="chart-canvas-wrap"><canvas id="chartScore" height="86"></canvas></div>
-          <div class="empty-state small" id="chartScoreEmpty" hidden><p>Brak danych.</p></div>
+        <div class="section-head"><h2>Rekordy</h2></div>
+        <div class="stat-summary-grid" id="recordsGrid"></div>
+
+        <div class="chart-grid">
+          <div class="card chart-card" data-metric="score" role="button" tabindex="0">
+            <div class="chart-title">Daily Score</div>
+            <div class="chart-canvas-wrap"><canvas id="chartScore" height="86"></canvas></div>
+            <div class="empty-state small" id="chartScoreEmpty" hidden><p>Brak danych.</p></div>
+          </div>
+          <div class="card chart-card" data-metric="water" role="button" tabindex="0">
+            <div class="chart-title">Nawodnienie</div>
+            <div class="chart-canvas-wrap"><canvas id="chartWater" height="86"></canvas></div>
+            <div class="empty-state small" id="chartWaterEmpty" hidden><p>Brak danych.</p></div>
+          </div>
+          <div class="card chart-card" data-metric="weight" role="button" tabindex="0">
+            <div class="chart-title">Masa ciała</div>
+            <div class="chart-canvas-wrap"><canvas id="chartWeight" height="86"></canvas></div>
+            <div class="empty-state small" id="chartWeightEmpty" hidden><p>Brak danych.</p></div>
+          </div>
+          <div class="card chart-card" data-metric="workouts" role="button" tabindex="0">
+            <div class="chart-title">Treningi / tydz.</div>
+            <div class="chart-canvas-wrap"><canvas id="chartWorkouts" height="86"></canvas></div>
+            <div class="empty-state small" id="chartWorkoutsEmpty" hidden><p>Brak danych.</p></div>
+          </div>
         </div>
 
-        <div class="card chart-card" data-metric="water" role="button" tabindex="0">
-          <div class="chart-title">Nawodnienie</div>
-          <div class="chart-canvas-wrap"><canvas id="chartWater" height="86"></canvas></div>
-          <div class="empty-state small" id="chartWaterEmpty" hidden><p>Brak danych.</p></div>
-        </div>
+        <div class="section-head"><h2>Tydzień Life Maxing</h2></div>
+        <div id="weeklyMount"></div>
 
-        <div class="card chart-card" data-metric="weight" role="button" tabindex="0">
-          <div class="chart-title">Masa ciała</div>
-          <div class="chart-canvas-wrap"><canvas id="chartWeight" height="86"></canvas></div>
-          <div class="empty-state small" id="chartWeightEmpty" hidden><p>Brak danych.</p></div>
-        </div>
-
-        <div class="card chart-card" data-metric="workouts" role="button" tabindex="0">
-          <div class="chart-title">Treningi / tydz.</div>
-          <div class="chart-canvas-wrap"><canvas id="chartWorkouts" height="86"></canvas></div>
-          <div class="empty-state small" id="chartWorkoutsEmpty" hidden><p>Brak danych.</p></div>
+        <div class="section-head"><h2>Historia</h2></div>
+        <ul class="history-list" id="historyList"></ul>
+        <button class="text-btn history-more-btn" id="historyMoreBtn" hidden>Pokaż więcej</button>
+        <div class="empty-state" id="historyEmpty" hidden>
+          <p>Brak danych z wybranego okresu.</p>
+          <p class="empty-sub">Zacznij dzisiaj, a statystyki pojawią się tutaj.</p>
         </div>
       </div>
 
-      <div class="section-head">
-        <h2>Historia</h2>
-      </div>
-      <ul class="history-list" id="historyList"></ul>
-      <button class="text-btn history-more-btn" id="historyMoreBtn" hidden>Pokaż więcej</button>
-      <div class="empty-state" id="historyEmpty" hidden>
-        <p>Brak danych z ostatnich dni.</p>
-        <p class="empty-sub">Zacznij dzisiaj, a statystyki pojawią się tutaj.</p>
-      </div>
+      <div id="statsBody" class="stats-pane" hidden></div>
+      <div id="statsFuel" class="stats-pane" hidden></div>
+      <div id="statsHabits" class="stats-pane" hidden></div>
+      <div id="statsMoney" class="stats-pane" hidden></div>
       <div class="bottom-spacer"></div>
     </div>
   </section>
@@ -232,6 +394,9 @@
       <h1>Ustawienia</h1>
     </header>
     <div class="scroll-area">
+
+      <div class="section-head"><h2>Profil i wyzwanie</h2></div>
+      <div class="card settings-card" id="settingsChallenge"></div>
 
       <div class="section-head"><h2>Cele dzienne</h2></div>
       <div class="card settings-card">
@@ -247,6 +412,18 @@
           <span>Cel białka (g)</span>
           <input type="number" id="setProteinGoal" class="settings-input">
         </label>
+        <label class="settings-row">
+          <span>Cel tłuszczu (g, 0 = wyłączony)</span>
+          <input type="number" id="setFatGoal" class="settings-input">
+        </label>
+        <label class="settings-row">
+          <span>Cel węglowodanów (g, 0 = wyłączony)</span>
+          <input type="number" id="setCarbGoal" class="settings-input">
+        </label>
+        <label class="settings-row">
+          <span>Cel snu (godz.)</span>
+          <input type="number" step="0.5" id="setSleepGoal" class="settings-input">
+        </label>
       </div>
 
       <div class="section-head"><h2>Regularność</h2></div>
@@ -257,24 +434,32 @@
         </label>
       </div>
 
-      <div class="section-head"><h2>Jednostki</h2></div>
+      <div class="section-head"><h2>Moduły</h2></div>
+      <div class="card settings-card" id="settingsModules"></div>
+
+      <div class="section-head"><h2>Nawyki i pielęgnacja</h2></div>
+      <div class="card settings-card" id="settingsRoutines"></div>
+
+      <div class="section-head"><h2>Trening i XP</h2></div>
+      <div class="card settings-card" id="settingsTrainingXp"></div>
+
+      <div class="section-head"><h2>Jednostki i wygląd</h2></div>
       <div class="card settings-card">
         <label class="settings-row">
           <span>System jednostek</span>
           <select id="setUnits" class="settings-input">
             <option value="metric">Metryczny (kg, L)</option>
-            <option value="imperial">Imperialny (lb, oz)</option>
+            <option value="imperial">Imperialny (lb, oz) — wkrótce</option>
           </select>
         </label>
-      </div>
-
-      <div class="section-head"><h2>Wygląd</h2></div>
-      <div class="card settings-card">
         <label class="settings-row">
           <span>Akcent koloru</span>
           <select id="setAccent" class="settings-input">
+            <option value="lime">Limonka</option>
+            <option value="green">Zieleń</option>
             <option value="blue">Chłodny niebieski</option>
-            <option value="lime">Neonowa zieleń</option>
+            <option value="amber">Bursztyn</option>
+            <option value="violet">Fiolet</option>
           </select>
         </label>
       </div>
@@ -282,54 +467,66 @@
       <div class="section-head"><h2>Szablony dnia</h2></div>
       <ul class="template-list" id="templateSettingsList"></ul>
       <button class="text-btn add-template-btn" id="addTemplateBtn">+ Nowy szablon</button>
+      <div id="recurringMount"></div>
 
       <div class="section-head"><h2>Aplikacja</h2></div>
       <div class="card settings-card">
         <button class="settings-action" id="checkUpdateBtn">Sprawdź aktualizację</button>
       </div>
 
-      <div class="section-head"><h2>Dane</h2></div>
+      <div class="section-head"><h2>Dane i kopie</h2></div>
       <div class="card settings-card">
         <button class="settings-action" id="exportBtn">Eksportuj dane (JSON)</button>
         <button class="settings-action" id="importBtn">Importuj dane (JSON)</button>
-        <input type="file" id="importFile" accept="application/json" hidden>
+        <input type="file" id="importFile" accept="application/json,.json" hidden>
+        <button class="settings-action" id="backupsBtn">Kopie bezpieczeństwa w tej przeglądarce</button>
+        <button class="settings-action" id="photosManageBtn" hidden>Zarządzaj zdjęciami</button>
         <button class="settings-action danger" id="resetBtn">Resetuj wszystkie dane</button>
       </div>
+      <div class="storage-line" id="storageLine"></div>
 
-      <div class="app-version">Prime · dane zapisane lokalnie na tym urządzeniu</div>
+      <div class="app-version" id="appVersion">Prime Life Maxing · dane zapisane lokalnie na tym urządzeniu</div>
       <div class="bottom-spacer"></div>
     </div>
   </section>
 
   <!-- ============ BOTTOM NAV ============ -->
-  <nav class="bottom-nav">
-    <button class="nav-btn active" data-target="today">
-      <span class="nav-icon">🏠</span><span class="nav-label">Dzisiaj</span>
-    </button>
-    <button class="nav-btn" data-target="goals">
-      <span class="nav-icon">🎯</span><span class="nav-label">Cele</span>
-    </button>
-    <button class="nav-btn" data-target="stats">
-      <span class="nav-icon">📊</span><span class="nav-label">Statystyki</span>
-    </button>
-    <button class="nav-btn" data-target="settings">
-      <span class="nav-icon">⚙️</span><span class="nav-label">Ustawienia</span>
-    </button>
+  <nav class="bottom-nav" aria-label="Główna nawigacja">
+    <button class="nav-btn active" data-target="today"><svg class="icon nav-icon" aria-hidden="true"><use href="#i-home"/></svg><span class="nav-label">Dzisiaj</span></button>
+    <button class="nav-btn" data-target="goals"><svg class="icon nav-icon" aria-hidden="true"><use href="#i-target"/></svg><span class="nav-label">Cele</span></button>
+    <button class="nav-btn" data-target="stats"><svg class="icon nav-icon" aria-hidden="true"><use href="#i-chart"/></svg><span class="nav-label">Statystyki</span></button>
+    <button class="nav-btn" data-target="settings"><svg class="icon nav-icon" aria-hidden="true"><use href="#i-sliders"/></svg><span class="nav-label">Ustawienia</span></button>
   </nav>
 </div>
+
+<!-- Full-screen panels (training, finance, projects, photos …) -->
+<div id="panelLayer" class="panel-layer" hidden></div>
 
 <!-- ============ MODALS ============ -->
 <div class="modal-backdrop" id="modalBackdrop" hidden>
 
   <!-- Add / edit task -->
-  <div class="modal" id="taskModal" hidden>
+  <div class="modal" id="taskModal" role="dialog" aria-modal="true" aria-labelledby="taskModalTitle" hidden>
     <div class="modal-handle"></div>
     <h3 class="modal-title" id="taskModalTitle">Nowe zadanie</h3>
     <label class="modal-label">Nazwa zadania
-      <input type="text" id="taskName" class="modal-input" placeholder="np. Trening" maxlength="60">
+      <input type="text" id="taskName" class="modal-input" placeholder="np. Trening" maxlength="200">
     </label>
-    <label class="modal-label">Godzina (opcjonalnie)
-      <input type="time" id="taskTime" class="modal-input">
+    <div class="modal-row-2">
+      <label class="modal-label">Godzina (opcjonalnie)
+        <input type="time" id="taskTime" class="modal-input">
+      </label>
+      <label class="modal-label">Czas trwania (min)
+        <input type="number" id="taskDuration" class="modal-input" min="1" max="1440" inputmode="numeric" placeholder="opcjonalnie">
+      </label>
+    </div>
+    <label class="modal-label" id="taskRepeatWrap">Powtarzanie
+      <select id="taskRepeat" class="modal-input">
+        <option value="none">Nie powtarzaj</option>
+        <option value="daily">Codziennie</option>
+        <option value="weekdays">W dni robocze</option>
+        <option value="weekly">Co tydzień (ten dzień tygodnia)</option>
+      </select>
     </label>
     <label class="modal-label">Kategoria (opcjonalnie)</label>
     <div class="category-grid" id="categoryGrid"></div>
@@ -341,14 +538,14 @@
   </div>
 
   <!-- Add / edit goal -->
-  <div class="modal" id="goalModal" hidden>
+  <div class="modal" id="goalModal" role="dialog" aria-modal="true" aria-labelledby="goalModalTitle" hidden>
     <div class="modal-handle"></div>
     <h3 class="modal-title" id="goalModalTitle">Nowy cel</h3>
     <label class="modal-label">Nazwa
-      <input type="text" id="goalName" class="modal-input" placeholder="np. DS5" maxlength="40">
+      <input type="text" id="goalName" class="modal-input" placeholder="np. Waga 78 kg" maxlength="100">
     </label>
     <label class="modal-label">Opis (opcjonalnie)
-      <input type="text" id="goalDesc" class="modal-input" placeholder="krótki opis" maxlength="80">
+      <input type="text" id="goalDesc" class="modal-input" placeholder="krótki opis" maxlength="300">
     </label>
     <div class="modal-row-2">
       <label class="modal-label">Wartość aktualna
@@ -360,12 +557,21 @@
     </div>
     <div class="modal-row-2">
       <label class="modal-label">Jednostka
-        <input type="text" id="goalUnit" class="modal-input" placeholder="np. zł, kg, L, godz." maxlength="12">
+        <input type="text" id="goalUnit" class="modal-input" placeholder="np. zł, kg, L, godz." maxlength="20">
       </label>
       <label class="modal-label">Deadline (opcjonalnie)
         <input type="date" id="goalDeadline" class="modal-input">
       </label>
     </div>
+    <div class="modal-row-2">
+      <label class="modal-label">Kategoria
+        <select id="goalCategory" class="modal-input"></select>
+      </label>
+      <label class="modal-label">Źródło wartości
+        <select id="goalLink" class="modal-input"></select>
+      </label>
+    </div>
+    <p class="modal-sub" id="goalLinkHint" hidden></p>
     <div class="modal-actions">
       <button class="btn ghost" id="goalDeleteBtn" hidden>Usuń</button>
       <button class="btn ghost" id="goalCancelBtn">Anuluj</button>
@@ -374,7 +580,7 @@
   </div>
 
   <!-- Template picker -->
-  <div class="modal" id="templateModal" hidden>
+  <div class="modal" id="templateModal" role="dialog" aria-modal="true" hidden>
     <div class="modal-handle"></div>
     <h3 class="modal-title">Zastosuj szablon</h3>
     <p class="modal-sub">Doda zadania z szablonu do bieżącego dnia.</p>
@@ -388,13 +594,13 @@
   </div>
 
   <!-- New template -->
-  <div class="modal" id="newTemplateModal" hidden>
+  <div class="modal" id="newTemplateModal" role="dialog" aria-modal="true" hidden>
     <div class="modal-handle"></div>
     <h3 class="modal-title">Nowy szablon</h3>
     <label class="modal-label">Nazwa szablonu
-      <input type="text" id="newTemplateName" class="modal-input" placeholder="np. Dzień siłowni" maxlength="40">
+      <input type="text" id="newTemplateName" class="modal-input" placeholder="np. Dzień siłowni" maxlength="100">
     </label>
-    <p class="modal-sub">Użyje zadań z bieżącego dnia jako treści szablonu (bez godzin/statusu wykonania).</p>
+    <p class="modal-sub">Użyje zadań z bieżącego dnia jako treści szablonu (bez godzin i statusu wykonania).</p>
     <div class="modal-actions">
       <button class="btn ghost" id="newTemplateCancelBtn">Anuluj</button>
       <button class="btn primary" id="newTemplateSaveBtn">Zapisz szablon</button>
@@ -402,13 +608,15 @@
   </div>
 
   <!-- Day summary -->
-  <div class="modal" id="summaryModal" hidden>
+  <div class="modal" id="summaryModal" role="dialog" aria-modal="true" hidden>
     <div class="modal-handle"></div>
-    <h3 class="modal-title">Podsumowanie</h3>
+    <h3 class="modal-title">Podsumowanie dnia</h3>
     <div class="summary-grid" id="summaryGrid"></div>
     <div class="summary-status" id="summaryStatus"></div>
+    <div id="summaryExtra"></div>
+    <label class="check-row"><input type="checkbox" id="summaryRest"> <span>Dzień wolny / choroba — nie przerywa streaka</span></label>
     <label class="modal-label">Notatka (opcjonalnie)
-      <textarea id="summaryNote" class="modal-input" rows="3" maxlength="300" placeholder="Jak poszło dzisiaj?"></textarea>
+      <textarea id="summaryNote" class="modal-input" rows="3" maxlength="5000" placeholder="Jak poszło dzisiaj?"></textarea>
     </label>
     <div class="modal-actions">
       <button class="btn primary" id="summaryCloseBtn">Zamknij</button>
@@ -416,9 +624,10 @@
   </div>
 
   <!-- Metric detail (tapped from a Stats chart card) -->
-  <div class="modal" id="metricModal" hidden>
+  <div class="modal" id="metricModal" role="dialog" aria-modal="true" hidden>
     <div class="modal-handle"></div>
     <h3 class="modal-title" id="metricModalTitle">Szczegóły</h3>
+    <p class="modal-sub" id="metricModalPeriod"></p>
     <div class="summary-grid" id="metricSummaryGrid"></div>
     <ul class="metric-detail-list" id="metricDetailList"></ul>
     <div class="empty-state small" id="metricDetailEmpty" hidden><p>Brak danych w tym okresie.</p></div>
@@ -427,19 +636,56 @@
     </div>
   </div>
 
-  <!-- Confirm dialog (reset, delete) -->
-  <div class="modal" id="confirmModal" hidden>
-    <div class="modal-handle"></div>
+  <!-- Dynamic bottom sheet (built by ui.sheet) -->
+  <div class="modal" id="dynModal" role="dialog" aria-modal="true" hidden></div>
+</div>
+
+<!-- Confirm dialog: its own layer so it can sit above sheets and panels -->
+<div class="modal-backdrop confirm-layer" id="confirmBackdrop" hidden>
+  <div class="modal" id="confirmModal" role="alertdialog" aria-modal="true" aria-labelledby="confirmTitle">
     <h3 class="modal-title" id="confirmTitle">Na pewno?</h3>
     <p class="modal-sub" id="confirmText"></p>
+    <div id="confirmExtra"></div>
     <div class="modal-actions">
       <button class="btn ghost" id="confirmCancelBtn">Anuluj</button>
       <button class="btn danger" id="confirmOkBtn">Potwierdź</button>
     </div>
   </div>
-
 </div>
 
+<script>
+/* Fail loudly instead of leaving a dead screen: show a readable error on the loader. */
+window.__primeBootFailed = false;
+window.addEventListener('error', function (e) {
+  var boot = document.getElementById('boot');
+  if (boot && !boot.hidden && !boot.classList.contains('done')) {
+    window.__primeBootFailed = true;
+    var msg = document.getElementById('bootMsg');
+    if (msg) msg.textContent = 'Nie udało się uruchomić aplikacji: ' + (e.message || 'błąd skryptu') + '. Twoje dane nie zostały zmienione. Spróbuj odświeżyć stronę.';
+    var sp = boot.querySelector('.boot-spinner'); if (sp) sp.style.display = 'none';
+  }
+});
+</script>
+<script src="js/dates.js"></script>
+<script src="js/schema.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/state.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/charts.js"></script>
+<script src="js/nutrition.js"></script>
+<script src="js/habits.js"></script>
+<script src="js/workouts.js"></script>
+<script src="js/growth.js"></script>
+<script src="js/social.js"></script>
+<script src="js/finance.js"></script>
+<script src="js/photos.js"></script>
+<script src="js/gamification.js"></script>
+<script src="js/lifemax.js"></script>
+<script src="js/trackers.js"></script>
+<script src="js/today.js"></script>
+<script src="js/goals.js"></script>
+<script src="js/stats.js"></script>
+<script src="js/settings.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>
