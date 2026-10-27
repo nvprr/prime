@@ -73,6 +73,7 @@
   const RENDER = {
     today: () => Prime.mods.today.render(),
     goals: () => Prime.mods.goals.render(),
+    life: () => Prime.mods.life.render(),
     stats: () => Prime.mods.stats.render(),
     settings: () => Prime.mods.settings.render(),
   };

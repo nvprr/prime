@@ -355,3 +355,88 @@ textarea.modal-input { min-height: 84px; resize: vertical; }
 
 /* photo comparison */
 .cmp-grid { align-items: start; } .cmp-fig { margin: 0; } .cmp-fig img { width: 100%; border-radius: 12px; display: block; aspect-ratio: 3/4; object-fit: cover; } .cmp-fig figcaption { font-size: 12px; font-weight: 600; color: var(--text-2); margin-top: 4px; }
+
+/* ============================================================
+   MINIMAL THEME — less chrome, fewer borders/colours, calmer type.
+   (Overrides above; all features and elements stay.)
+   ============================================================ */
+:root { --bg: #0c0d0f; --surface: #131518; --surface-2: #181b1f; --surface-3: #22262b; --border: transparent; --border-2: rgba(255,255,255,.1); --r-lg: 16px; --r-md: 12px; }
+body { background: var(--bg); }
+.card, .goal-item, .history-item, .stat-box, .summary-box, .task-item, .collapsible, .template-item, .badge { border: 0; }
+.card { padding: 14px 16px; }
+.view-header h1 { font-size: 22px; }
+.section-head { margin: 22px 2px 8px; } .section-head h2 { font-size: 12px; letter-spacing: .06em; color: var(--text-3); font-weight: 600; }
+.text-btn { font-weight: 500; font-size: 14px; }
+
+/* header + hero: quiet */
+.icon-btn.accent { background: var(--surface-2); color: var(--accent); border-radius: 12px; }
+.date-weekday { color: var(--text-3); font-weight: 500; letter-spacing: .06em; font-size: 11px; }
+.date-full { font-size: 16px; font-weight: 700; }
+.hero { background: var(--surface); padding: 16px; }
+.hero-greeting { font-size: 18px; font-weight: 700; }
+.hero-num { font-size: 30px; color: var(--text); font-weight: 700; }
+.hero-chips { display: none; }
+.hero-challenge-row { margin: 10px 0 6px; font-weight: 500; color: var(--text-2); }
+.progress-track { height: 6px; } .progress-track.thin { height: 4px; }
+
+/* score */
+.score-label { letter-spacing: .08em; font-weight: 600; }
+.score-percent { font-size: 28px; font-weight: 700; color: var(--text); }
+.streak-row { font-weight: 500; color: var(--text-2); font-size: 13.5px; } .streak-flame { color: var(--text-3); width: 16px; height: 16px; }
+.xp-mini { color: var(--text-3); font-weight: 500; }
+
+/* tasks */
+.task-item { background: var(--surface); }
+.task-item.priority { box-shadow: inset 3px 0 0 var(--accent); }
+.task-name { font-weight: 500; }
+.task-star-btn, .task-edit-btn { color: var(--surface-3); }
+.task-star-btn.active { color: var(--accent); } .task-item:hover .task-star-btn, .task-item:hover .task-edit-btn { color: var(--text-3); }
+@media (hover: none) { .task-star-btn, .task-edit-btn { color: var(--text-3); opacity: .7; } .task-star-btn.active { color: var(--accent); opacity: 1; } }
+.add-btn { border: 0; background: var(--surface); color: var(--text-2); font-weight: 500; min-height: 46px; }
+
+/* sections */
+.life-sections { gap: 6px; }
+.collapsible-head { min-height: 50px; }
+.cl-title { font-weight: 600; } .sec-icon { color: var(--text-3); width: 18px; height: 18px; }
+.collapsible-body { padding: 0 12px 12px; }
+.tracker-card, .workout-card, .habit-card, .project-card, .entry-card { background: var(--surface-2); }
+.tracker-icon { color: var(--text-3); } .tracker-name { font-weight: 500; }
+.tracker-value { font-size: 18px; font-weight: 700; }
+.module-links { gap: 14px; margin: 10px 2px 0; }
+.module-link { background: none; border: 0; padding: 6px 0; min-height: 36px; color: var(--text-2); font-weight: 500; }
+.module-link .icon { color: var(--text-3); width: 16px; height: 16px; }
+.summary-btn { background: transparent; color: var(--text-2); border: 1px solid var(--border-2); font-weight: 600; min-height: 46px; }
+
+/* chips / pills / buttons */
+.chip, .chip-btn, .category-chip { background: var(--surface-2); border: 0; font-weight: 500; }
+.chip.active, .category-chip.selected, .chip-btn.active { background: var(--text); color: var(--bg); border: 0; }
+.pill, .pill.accent { background: var(--surface-3); color: var(--text-2); font-weight: 500; } 
+.stat-chip { background: var(--surface-2); font-weight: 500; }
+.seg-btn[aria-pressed="true"] { background: var(--surface-3); box-shadow: none; }
+.range-btn.active { background: var(--surface-3); color: var(--text); }
+.btn { border: 0; background: var(--surface-3); font-weight: 500; }
+.btn.primary { background: var(--accent); color: var(--accent-text); font-weight: 600; }
+.btn.ghost { background: transparent; border: 1px solid var(--border-2); }
+.modal-input, .settings-input, .tracker-input, .set-input { border: 1px solid transparent; background: var(--surface-3); }
+.modal { background: var(--surface); border: 0; }
+
+/* goals / stats */
+.goal-item { background: var(--surface); } .goal-name { font-weight: 600; font-size: 15px; } .goal-pct { color: var(--text-2); font-weight: 600; }
+.goal-item.done, .goal-item.overdue, .goal-item.soon { border: 0; } .goal-item.overdue { box-shadow: inset 3px 0 0 var(--bad); } .goal-item.soon { box-shadow: inset 3px 0 0 var(--warn); } .goal-item.done { box-shadow: inset 3px 0 0 var(--good); }
+.stat-box { background: var(--surface); } .stat-box-value { font-size: 20px; font-weight: 700; } .stat-box-delta { color: var(--text-3); }
+.chart-title { font-weight: 600; color: var(--text-2); font-size: 13px; }
+.history-item { background: var(--surface); } .history-score { color: var(--text-2); font-weight: 600; }
+.bottom-nav { background: var(--bg); backdrop-filter: none; border-top: 1px solid var(--surface-2); }
+.nav-label { font-weight: 500; } .nav-btn.active { color: var(--text); }
+.nav-btn.active .nav-icon { color: var(--accent); }
+.badge.earned { border: 0; } .badge.earned .icon { color: var(--accent); }
+.settings-card { padding: 2px 16px; } .settings-row, .settings-action { border-color: var(--surface-2); } .settings-action { font-weight: 500; }
+.banner { border: 0; }
+
+/* life tab + today declutter */
+#moduleLinks { display: none; }
+.life-list { display: grid; gap: 1px; background: var(--surface-2); border-radius: var(--r-lg); overflow: hidden; margin-top: 6px; }
+.life-row { width: 100%; display: flex; align-items: center; gap: 14px; background: var(--surface); border: 0; padding: 14px 16px; min-height: 60px; text-align: left; }
+.life-row > .icon:first-child { color: var(--text-3); } .life-row > .icon:last-child { color: var(--surface-3); margin-left: auto; }
+.life-text { display: grid; flex: 1; min-width: 0; } .life-title { font-weight: 600; } .life-sub { color: var(--text-3); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nav-btn { padding: 0 2px; } .nav-label { font-size: 10.5px; }

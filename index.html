@@ -325,6 +325,16 @@
     </div>
   </section>
 
+  <!-- ============ VIEW: ŻYCIE (moduły) ============ -->
+  <section class="view" id="view-life" data-view="life" hidden>
+    <header class="view-header simple"><h1>Życie</h1></header>
+    <div class="scroll-area">
+      <ul class="life-list" id="lifeList"></ul>
+      <p class="hint" id="lifeEmpty" hidden>Wszystkie moduły są wyłączone. Włączysz je w Ustawieniach.</p>
+      <div class="bottom-spacer"></div>
+    </div>
+  </section>
+
   <!-- ============ VIEW: STATYSTYKI ============ -->
   <section class="view" id="view-stats" data-view="stats" hidden>
     <header class="view-header simple">
@@ -494,6 +504,7 @@
   <nav class="bottom-nav" aria-label="Główna nawigacja">
     <button class="nav-btn active" data-target="today"><svg class="icon nav-icon" aria-hidden="true"><use href="#i-home"/></svg><span class="nav-label">Dzisiaj</span></button>
     <button class="nav-btn" data-target="goals"><svg class="icon nav-icon" aria-hidden="true"><use href="#i-target"/></svg><span class="nav-label">Cele</span></button>
+    <button class="nav-btn" data-target="life"><svg class="icon nav-icon" aria-hidden="true"><use href="#i-list"/></svg><span class="nav-label">Życie</span></button>
     <button class="nav-btn" data-target="stats"><svg class="icon nav-icon" aria-hidden="true"><use href="#i-chart"/></svg><span class="nav-label">Statystyki</span></button>
     <button class="nav-btn" data-target="settings"><svg class="icon nav-icon" aria-hidden="true"><use href="#i-sliders"/></svg><span class="nav-label">Ustawienia</span></button>
   </nav>
@@ -684,6 +695,7 @@ window.addEventListener('error', function (e) {
 <script src="js/trackers.js"></script>
 <script src="js/today.js"></script>
 <script src="js/goals.js"></script>
+<script src="js/life.js"></script>
 <script src="js/stats.js"></script>
 <script src="js/settings.js"></script>
 <script src="js/app.js"></script>

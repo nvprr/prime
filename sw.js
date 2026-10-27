@@ -1,6 +1,6 @@
 // Prime Life Maxing — service worker
 // Bump CACHE_VERSION on every deploy that changes any cached file.
-const CACHE_VERSION = 'plm-v1';
+const CACHE_VERSION = 'plm-v2';
 const CACHE_NAME = `prime-cache-${CACHE_VERSION}`;
 const NETWORK_TIMEOUT_MS = 4000;
 
@@ -10,7 +10,7 @@ const CORE = [
   './js/dates.js', './js/schema.js', './js/storage.js', './js/state.js', './js/ui.js', './js/charts.js',
   './js/nutrition.js', './js/habits.js', './js/workouts.js', './js/growth.js', './js/social.js', './js/finance.js',
   './js/photos.js', './js/gamification.js', './js/lifemax.js', './js/trackers.js', './js/today.js',
-  './js/goals.js', './js/stats.js', './js/settings.js', './js/app.js',
+  './js/goals.js', './js/life.js', './js/stats.js', './js/settings.js', './js/app.js',
 ];
 // Nice to have: a missing one must not break the install.
 const OPTIONAL = ['./manifest.json', './assets/icon-192.png', './assets/icon-512.png', './assets/apple-touch-icon.png'];
