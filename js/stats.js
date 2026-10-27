@@ -92,9 +92,30 @@
     rec.appendChild(ui.statBox(bestWater ? Prime.roundTo(bestWater.v / 1000, 2) + ' L' : '—', 'Najwięcej wody · cały czas', bestWater ? D.shortLabel(bestWater.k) : ''));
     rec.appendChild(ui.statBox(bestSteps ? bestSteps.v : '—', 'Najwięcej kroków · cały czas', bestSteps ? D.shortLabel(bestSteps.k) : ''));
 
+    heatmap();
     charts(dates);
     Prime.mods.lifemax.renderWeekly($('weeklyMount'));
     renderHistory(dates);
+  }
+
+  /* ---------------- heatmap (13 weeks, Daily Score per day) ---------------- */
+
+  function heatmap() {
+    const root = $('heatmapMount'); ui.clear(root);
+    const today = Prime.today(), first = D.addDays(D.weekStart(today), -12 * 7);
+    const grid = h('div.heat-grid', { role: 'group', 'aria-label': 'Daily Score z ostatnich 13 tygodni' });
+    let any = false;
+    for (let i = 0; i < 13 * 7; i++) {
+      const ds = D.addDays(first, i);
+      if (ds > today) { grid.appendChild(h('span.heat-cell.future')); continue; }
+      const d = Prime.state.days[ds], sc = d ? Prime.computeScore(d).pct : null, rest = !!(d && d.rest);
+      const lvl = rest ? 'rest' : sc === null ? 'none' : sc >= 80 ? 'l4' : sc >= 60 ? 'l3' : sc >= 40 ? 'l2' : 'l1';
+      if (sc !== null) any = true;
+      grid.appendChild(h('button.heat-cell.' + lvl + (ds === today ? '.today' : ''), { type: 'button', 'aria-label': `${D.shortLabel(ds)}: ${rest ? 'dzień wolny' : sc === null ? 'brak zadań' : sc + '%'}`, title: `${D.shortLabel(ds)} · ${rest ? 'wolny' : sc === null ? '—' : sc + '%'}`, onClick: () => openDay(ds) }));
+    }
+    root.appendChild(grid);
+    root.appendChild(h('div.heat-legend', null, h('span', { text: 'mniej' }), ['l1', 'l2', 'l3', 'l4'].map(l => h('span.heat-cell.' + l)), h('span', { text: 'więcej' }), h('span.heat-note', { text: 'wiersze: Pn–Nd · kolumny: tygodnie' })));
+    if (!any) root.appendChild(h('p.hint', { text: 'Pojawi się, gdy zaczniesz odhaczać zadania.' }));
   }
 
   /* ---------------- charts ---------------- */

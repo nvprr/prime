@@ -1,6 +1,6 @@
 // Prime Life Maxing — service worker
 // Bump CACHE_VERSION on every deploy that changes any cached file.
-const CACHE_VERSION = 'plm-v3';
+const CACHE_VERSION = 'plm-v4';
 const CACHE_NAME = `prime-cache-${CACHE_VERSION}`;
 const NETWORK_TIMEOUT_MS = 4000;
 
