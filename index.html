@@ -130,6 +130,9 @@
         <div class="hero-chips" id="heroChips"></div>
       </div>
 
+      <p class="nudge" id="nudge" hidden></p>
+      <div class="card backup-nudge" id="backupNudge" hidden></div>
+
       <!-- Daily score -->
       <div class="card score-card">
         <div class="score-top">
@@ -148,6 +151,7 @@
           <span class="streak-rest" id="restBadge" hidden>dzień wolny</span>
           <span class="xp-mini" id="xpMini"></span>
         </div>
+        <div class="week-strip" id="weekStrip" role="group" aria-label="Ten tydzień"></div>
       </div>
 
       <!-- Big 3 -->
@@ -164,7 +168,7 @@
       <!-- Task list -->
       <div class="section-head">
         <h2>Plan dnia</h2>
-        <button class="text-btn" id="useTemplateBtn">Szablon</button>
+        <span class="section-right"><button class="text-btn" id="copyYesterdayBtn">Z poprzedniego dnia</button><button class="text-btn" id="useTemplateBtn">Szablon</button></span>
       </div>
       <ul class="task-list" id="taskList"></ul>
       <div class="empty-state" id="tasksEmpty" hidden>
@@ -174,7 +178,7 @@
       <button class="add-btn" id="addTaskBtn"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg> Dodaj zadanie</button>
 
       <!-- Life Maxing sections (collapsible) -->
-      <div class="section-head"><h2>Life Maxing</h2></div>
+      <div class="section-head" id="lifeHead"><h2>Life Maxing</h2></div>
       <div class="life-sections" id="lifeSections">
 
         <section class="collapsible" data-sec="body">

@@ -73,6 +73,9 @@
       });
       root.appendChild(h('label.settings-row.toggle', null, h('span.settings-row-text', null, h('span', { text: label }), h('small', { text: sub })), cb));
     });
+    const fc = h('input', { type: 'checkbox', checked: !!S().ui.focus, 'aria-label': 'Tryb skupienia' });
+    fc.addEventListener('change', () => { S().ui.focus = fc.checked; saveAndRefresh(); });
+    root.appendChild(h('label.settings-row.toggle', null, h('span.settings-row-text', null, h('span', { text: 'Tryb skupienia' }), h('small', { text: 'Dzisiaj tylko: Big 3, plan i wynik. Reszta pod „+” i w Życiu.' })), fc));
     root.appendChild(h('p.hint', { text: 'Wyłączenie modułu tylko go ukrywa — dane zostają nietknięte i wrócą po ponownym włączeniu.' }));
   }
 
@@ -150,6 +153,7 @@
     try {
       const text = Prime.ST.exportText(Prime.state);
       ui.download(`prime-life-maxing-${Prime.today()}.json`, text, 'application/json');
+      Prime.state.settings.ui.lastExport = Prime.today(); Prime.save();
       ui.toast('Wyeksportowano dane');
       return true;
     } catch (e) { fail('Eksport nie powiódł się'); return false; }

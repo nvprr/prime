@@ -33,6 +33,82 @@
     if (changed) Prime.save();
   }
 
+  /* ---------------- week strip / nudges ---------------- */
+
+  function renderWeekStrip(ds) {
+    const box = $('weekStrip'); ui.clear(box);
+    const today = Prime.today(), L = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So', 'Nd'];
+    D.weekDates(ds).forEach((d, i) => {
+      const rest = Prime.isRest(d), pass = !rest && d <= today && Prime.dayPasses(d);
+      const cls = (pass ? '.pass' : rest ? '.rest' : d < today ? '.miss' : '') + (d === ds ? '.sel' : '') + (d === today ? '.today' : '');
+      box.appendChild(h('button.wk-cell' + cls, { type: 'button', 'aria-label': `${D.formatWeekday(d)} ${D.shortLabel(d)}${pass ? ', zaliczony' : rest ? ', dzień wolny' : ''}`, onClick: () => { Prime.date = d; Prime.refresh(); } },
+        h('span.wk-l', { text: L[i] }), h('span.wk-dot')));
+    });
+  }
+
+  /** One quiet line, only for today, only in the evening, only about the user's own targets. */
+  function renderNudge(ds) {
+    const el = $('nudge'); const now = new Date();
+    const day = Prime.day(ds), s = Prime.state.settings, miss = [];
+    if (ds === Prime.today() && now.getHours() >= 17 && !day.rest) {
+      if (s.waterGoal > 0 && day.water / 1000 < s.waterGoal * 0.5) miss.push('woda poniżej połowy celu');
+      if (Prime.modEnabled('training') && Prime.mods.workouts.dayStatus(ds).kind === 'planned') miss.push('zaplanowany trening czeka');
+      const undone = day.tasks.filter(t => t.priority && !t.done).length;
+      if (undone) miss.push(`Big 3: zostało ${undone}`);
+    }
+    el.hidden = miss.length === 0;
+    el.textContent = miss.length ? 'Na dziś jeszcze: ' + miss.join(' · ') : '';
+  }
+
+  function renderBackupNudge() {
+    const box = $('backupNudge'); ui.clear(box);
+    const u = Prime.state.settings.ui, today = Prime.today();
+    const days = Object.keys(Prime.state.days).length;
+    const last = D.isDateStr(u.lastExport) ? u.lastExport : null;
+    const snooze = D.isDateStr(u.backupSnooze) ? u.backupSnooze : null;
+    const due = days >= 3 && (!last || D.diffDays(last, today) >= 7) && (!snooze || snooze <= today) && !Prime.locked;
+    box.hidden = !due;
+    if (!due) return;
+    box.appendChild(h('div.li-title', { text: 'Kopia zapasowa' }));
+    box.appendChild(h('div.li-sub', { text: last ? `Ostatni eksport: ${D.shortLabel(last)}. Dane są tylko w tym telefonie.` : 'Nie robiłeś jeszcze eksportu. Dane są tylko w tym telefonie.' }));
+    box.appendChild(h('div.row-actions', null,
+      h('button.btn.small.primary', { type: 'button', text: 'Eksportuj', onClick: () => { if (Prime.mods.settings.exportData()) Prime.refresh(); } }),
+      h('button.btn.small.ghost', { type: 'button', text: 'Później', onClick: () => { u.backupSnooze = D.addDays(today, 3); Prime.save(); Prime.refresh(); } })));
+  }
+
+  /* ---------------- copy previous day ---------------- */
+
+  function copyPrevious() {
+    const src = Prime.state.days[D.addDays(Prime.date, -1)];
+    if (!src || !src.tasks.length) { ui.toast('Poprzedni dzień nie ma zadań'); return; }
+    const day = Prime.ensureDay(Prime.date);
+    const have = new Set(day.tasks.map(t => t.name.trim().toLowerCase()));
+    let n = 0;
+    src.tasks.forEach(t => {
+      if (t.recurId || have.has(t.name.trim().toLowerCase())) return; // repeating tasks come on their own
+      day.tasks.push({ id: Prime.uid(), name: t.name, time: t.time || null, category: t.category || null, duration: t.duration || null, done: false, priority: false });
+      n++;
+    });
+    if (!n) { ui.toast('Nic do skopiowania (zadania już są lub są powtarzalne)'); return; }
+    Prime.save(); Prime.refresh(); ui.toast(`Skopiowano ${n} ${Prime.plural(n, 'zadanie', 'zadania', 'zadań')}`);
+  }
+
+  /* ---------------- body numbers quick sheet (for focus mode) ---------------- */
+
+  function openBodySheet() {
+    const ds = Prime.date, d = Prime.day(ds);
+    const w = ui.input({ type: 'number', step: '0.1', inputmode: 'decimal', value: d.weight === null ? '' : String(d.weight), placeholder: 'kg' });
+    const sl = ui.input({ type: 'number', step: '0.1', inputmode: 'decimal', value: d.sleep === null ? '' : String(d.sleep), placeholder: 'godz.' });
+    const st = ui.input({ type: 'number', inputmode: 'numeric', value: d.steps === null ? '' : String(d.steps), placeholder: 'kroki' });
+    ui.sheet({ title: 'Waga, sen, kroki', sub: D.formatFullDate(ds), body: h('div', null, ui.field('Masa (kg)', w), ui.field('Sen (godz.)', sl), ui.field('Kroki', st)),
+      actions: [{ label: 'Anuluj', kind: 'ghost' }, { label: 'Zapisz', kind: 'primary', onClick: () => {
+        const num = (el, max, dec) => { if (el.value === '') return undefined; const v = Number(el.value); return isNaN(v) ? undefined : Prime.roundTo(Prime.clamp(v, 0, max), dec); };
+        const x = Prime.ensureDay(ds), a = num(w, 500, 1), b = num(sl, 24, 1), c = num(st, 200000, 0);
+        if (a !== undefined) x.weight = a; if (b !== undefined) x.sleep = b; if (c !== undefined) x.steps = c;
+        Prime.save(); Prime.refresh();
+      } }] });
+  }
+
   /* ---------------- task rendering ---------------- */
 
   function renderTaskItem(task) {
@@ -98,6 +174,9 @@
     xp.hidden = !Prime.modEnabled('xp');
 
     Prime.mods.lifemax.renderHero(ds);
+    const focus = !!Prime.state.settings.ui.focus;
+    $('heroCard').hidden = focus; $('lifeHead').hidden = focus; $('lifeSections').hidden = focus;
+    renderWeekStrip(ds); renderNudge(ds); renderBackupNudge();
 
     // Big 3 + plan
     const big = sortTasks(day.tasks.filter(t => t.priority));
@@ -259,6 +338,7 @@
       ['dumbbell', 'Trening', () => { ui.closeModals(); Prime.date = ds; M.workouts.openPanel('session'); }, Prime.modEnabled('training')],
       ['wallet', 'Wydatek', () => M.finance.openTxSheet(null, { date: ds <= Prime.today() ? ds : Prime.today() }), Prime.modEnabled('finance')],
       ['bulb', 'Sesja rozwoju', () => M.growth.openSessionSheet(ds, M.growth.mainProject()), Prime.modEnabled('growth')],
+      ['scale', 'Waga, sen, kroki', () => openBodySheet(), true],
       ['note', 'Notatka dnia', () => openSummary(), true],
     ].filter(x => x[3]);
     const grid = h('div.quick-grid', null, items.map(([icon, label, fn]) => h('button.quick-item', { type: 'button', onClick: fn }, ui.icon(icon), h('span', { text: label }))));
@@ -333,6 +413,7 @@
     $('taskName').addEventListener('keydown', (e) => { if (e.key === 'Enter') saveTask(); });
 
     $('useTemplateBtn').addEventListener('click', openTemplatePicker);
+    $('copyYesterdayBtn').addEventListener('click', copyPrevious);
     $('templatePickList').addEventListener('click', (e) => { const b = e.target.closest('.template-pick-apply'); if (b) applyTemplate(b.dataset.id); });
     $('templateCancelBtn').addEventListener('click', ui.closeModals);
 
